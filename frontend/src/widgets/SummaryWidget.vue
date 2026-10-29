@@ -14,7 +14,7 @@
       </button>
     </div>
     <div class="summary-content">
-      <pre v-if="store.summary" class="summary-text">{{ store.summary.content }}</pre>
+      <div v-if="store.summary" class="summary-text markdown-body" v-html="rendered"></div>
       <div v-else class="empty">暂无总结，点击「生成总结」消化今天的消息 / 待办 / 便签</div>
     </div>
   </div>
@@ -23,6 +23,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted } from 'vue'
 import { useSummaryStore } from '@/stores/summaries'
+import { renderMarkdown } from '@/utils/markdown'
 
 const props = defineProps<{ config?: Record<string, any> }>()
 
@@ -30,6 +31,10 @@ const store = useSummaryStore()
 let timer: number | undefined
 
 const autoRefresh = computed(() => props.config?.autoRefresh ?? false)
+
+const rendered = computed(() =>
+  store.summary ? renderMarkdown(store.summary.content) : ''
+)
 
 onMounted(() => {
   store.load()

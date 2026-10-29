@@ -582,11 +582,79 @@ button {
   font-size: 13px;
   line-height: 1.7;
   color: var(--text);
-  white-space: pre-wrap;
   word-break: break-word;
+}
+
+/* Markdown 内容样式 */
+.summary-text h1,
+.summary-text h2 {
+  font-size: 16px;
+  font-weight: 600;
+  margin: 12px 0 6px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--border);
+}
+
+.summary-text h3,
+.summary-text h4 {
+  font-size: 14px;
+  font-weight: 600;
+  margin: 10px 0 4px;
+}
+
+.summary-text p {
+  margin: 6px 0;
+}
+
+.summary-text ul,
+.summary-text ol {
+  padding-left: 20px;
+  margin: 4px 0;
+}
+
+.summary-text li {
+  margin: 3px 0;
+}
+
+.summary-text strong {
+  font-weight: 600;
+}
+
+.summary-text code {
+  background: var(--surface-2);
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+.summary-text pre {
+  background: var(--surface-2);
+  padding: 8px 10px;
+  border-radius: 8px;
+  overflow: auto;
+  margin: 6px 0;
+}
+
+.summary-text pre code {
   background: transparent;
+  padding: 0;
+}
+
+.summary-text blockquote {
+  border-left: 3px solid var(--accent);
+  padding-left: 10px;
+  color: var(--text-2);
+  margin: 6px 0;
+}
+
+.summary-text a {
+  color: var(--accent);
+}
+
+.summary-text hr {
   border: none;
-  margin: 0;
+  border-top: 1px solid var(--border);
+  margin: 10px 0;
 }
 
 /* 订阅管理 */
