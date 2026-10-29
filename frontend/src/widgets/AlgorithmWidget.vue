@@ -52,27 +52,64 @@
               ★
             </button>
           </span>
-          <button class="algo-note-btn" :class="{ has: q.note }" title="笔记" @click="toggleNote(q)">
+          <button class="algo-note-btn" :class="{ has: q.note }" title="笔记" @click="openNote(q)">
             📝
           </button>
           <button class="algo-del" title="删除" @click="remove(q)">×</button>
         </div>
-        <div v-if="expandedId === q.id" class="algo-note">
-          <textarea
-            :value="q.note ?? ''"
-            placeholder="记录解题思路 / 代码…"
-            @input="onNote(q, ($event.target as HTMLTextAreaElement).value)"
-          ></textarea>
-        </div>
       </div>
       <div v-if="store.items.length === 0" class="empty">暂无题目，点击「＋ 添加」录入，或调整筛选条件</div>
     </div>
+
+    <!-- 笔记大弹窗：左右分栏（编辑 + 实时 Markdown 预览），脱离网格约束全屏居中 -->
+    <Teleport to="body">
+      <div v-if="noteOpen" class="algo-note-mask" @click.self="closeNote">
+        <div class="algo-note-modal">
+          <div class="algo-note-head">
+            <div class="algo-note-title">
+              <span v-if="editingQuestion" class="algo-diff" :class="editingQuestion.difficulty">
+                {{ diffLabel(editingQuestion.difficulty) }}
+              </span>
+              <span class="algo-note-name">{{ editingQuestion?.title ?? '' }}</span>
+              <a
+                v-if="editingQuestion"
+                :href="editingQuestion.leetcodeUrl"
+                target="_blank"
+                rel="noopener"
+                class="algo-note-link"
+                >打开题目 ↗</a
+              >
+            </div>
+            <button class="algo-note-close" title="关闭" @click="closeNote">×</button>
+          </div>
+          <div class="algo-note-body">
+            <div class="algo-note-editor">
+              <div class="algo-note-label">编辑（支持 Markdown，代码块用 ```java 等）</div>
+              <textarea
+                v-model="draftNote"
+                placeholder="记录解题思路 / 代码…&#10;&#10;代码块示例：&#10;```java&#10;public int twoSum(int[] nums, int target) {&#10;    return 0;&#10;}&#10;```"
+                @keydown="onKeydown"
+              ></textarea>
+            </div>
+            <div class="algo-note-preview">
+              <div class="algo-note-label">预览</div>
+              <div class="algo-note-rendered markdown-body" v-html="previewHtml"></div>
+            </div>
+          </div>
+          <div class="algo-note-foot">
+            <span class="algo-note-tip">{{ saving ? '已自动保存' : '自动保存中…' }}</span>
+            <button class="btn primary" @click="closeNote">完成</button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import { useAlgorithmStore } from '@/stores/algorithms'
+import { renderMarkdown } from '@/utils/markdown'
 import { toastError, friendlyError } from '@/utils/toast'
 import type { AlgorithmQuestion } from '@/types'
 
@@ -87,11 +124,21 @@ const showAdd = ref(false)
 const newTitle = ref('')
 const newUrl = ref('')
 const newDifficulty = ref('medium')
-const expandedId = ref<number | null>(null)
 
-const noteTimers = new Map<number, number>()
+// 笔记弹窗状态
+const noteOpen = ref(false)
+const editingId = ref<number | null>(null)
+const draftNote = ref('')
+const saving = ref(false)
+let noteSaveTimer: number | undefined
 
 const canAdd = computed(() => newTitle.value.trim() !== '' && newUrl.value.trim() !== '')
+
+const editingQuestion = computed(() =>
+  store.items.find((i) => i.id === editingId.value)
+)
+
+const previewHtml = computed(() => renderMarkdown(draftNote.value || ''))
 
 onMounted(() => reload())
 
@@ -105,6 +152,14 @@ watch(keyword, () => {
   searchTimer = window.setTimeout(reload, 300)
 })
 watch([difficulty, sort], reload)
+
+// 笔记内容变化 → 防抖自动保存
+watch(draftNote, () => {
+  if (editingId.value === null) return
+  saving.value = true
+  if (noteSaveTimer) window.clearTimeout(noteSaveTimer)
+  noteSaveTimer = window.setTimeout(saveNote, 600)
+})
 
 async function add() {
   if (!canAdd.value) return
@@ -131,16 +186,45 @@ async function setStar(q: AlgorithmQuestion, n: number) {
   }
 }
 
-function toggleNote(q: AlgorithmQuestion) {
-  expandedId.value = expandedId.value === q.id ? null : q.id
+function openNote(q: AlgorithmQuestion) {
+  editingId.value = q.id
+  draftNote.value = q.note ?? ''
+  saving.value = false
+  noteOpen.value = true
 }
 
-function onNote(q: AlgorithmQuestion, value: string) {
-  const item = store.items.find((i) => i.id === q.id)
-  if (item) item.note = value
-  const t = noteTimers.get(q.id)
-  if (t) window.clearTimeout(t)
-  noteTimers.set(q.id, window.setTimeout(() => store.setNote(q.id, value), 600))
+async function saveNote() {
+  if (editingId.value === null) return
+  try {
+    await store.setNote(editingId.value, draftNote.value)
+    saving.value = false
+  } catch (err) {
+    toastError('保存笔记失败：' + friendlyError(err))
+  }
+}
+
+function closeNote() {
+  if (noteSaveTimer) window.clearTimeout(noteSaveTimer)
+  if (editingId.value !== null && saving.value) {
+    saveNote()
+  }
+  noteOpen.value = false
+  editingId.value = null
+  draftNote.value = ''
+}
+
+// Tab 键插入缩进（写代码更顺手）
+function onKeydown(e: KeyboardEvent) {
+  if (e.key !== 'Tab') return
+  e.preventDefault()
+  const ta = e.target as HTMLTextAreaElement
+  const start = ta.selectionStart
+  const end = ta.selectionEnd
+  const v = draftNote.value
+  draftNote.value = v.substring(0, start) + '  ' + v.substring(end)
+  requestAnimationFrame(() => {
+    ta.selectionStart = ta.selectionEnd = start + 2
+  })
 }
 
 async function remove(q: AlgorithmQuestion) {
