@@ -28,6 +28,11 @@ nexus:
   cors:
     # 前端 Vite 开发服务器地址，生产由 Nginx 反代时改环境变量覆盖
     allowed-origins: ${NEXUS_CORS_ORIGINS:http://localhost:5173}
+  agent:
+    # Python LangGraph 编排服务地址
+    base-url: ${NEXUS_AGENT_BASE_URL:http://127.0.0.1:9001}
+    # 每日总结定时触发 cron（默认每天 23:30）
+    digest-cron: ${NEXUS_DIGEST_CRON:0 30 23 * * *}
 
 management:
   endpoints:

@@ -41,6 +41,8 @@ public class GlobalExceptionHandler {
                 return HttpStatus.NOT_FOUND;
             case CONFLICT:
                 return HttpStatus.CONFLICT;
+            case AGENT_ERROR:
+                return HttpStatus.BAD_GATEWAY;
             case BAD_REQUEST:
             default:
                 return HttpStatus.BAD_REQUEST;

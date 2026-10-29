@@ -148,7 +148,7 @@
 
 **链接对象**：`{ "id": 1, "title": "GitHub", "url": "https://github.com", "sortOrder": 0 }`
 
-### 消息（📋 Phase 3）
+### 消息（✅ Phase 3）
 
 | 方法 | 路径 | 说明 |
 |---|---|---|
@@ -157,12 +157,14 @@
 
 **消息对象**：`{ "id": 1, "source": "feishu", "channel": "group", "sender": "张三", "content": "...", "receivedAt": "..." }`
 
-### 每日总结（📋 Phase 4）
+### 每日总结（✅ Phase 4）
 
 | 方法 | 路径 | 说明 |
 |---|---|---|
-| GET | `/api/summaries` | 总结列表 |
-| POST | `/api/summaries/_digest` | 手动触发一次"消化"任务 |
+| POST | `/api/summaries/digest` | 手动触发一次"消化"任务（可选 `?date=2026-10-29`，默认今天） |
+| GET | `/api/summaries/latest` | 查询最新一份总结 |
+
+**总结对象**：`{ "id": 1, "summaryDate": "2026-10-29", "content": "## ...", "messageCount": 4, "todoCount": 1, "noteCount": 1, "llmMode": "rule-based", "createdAt": "..." }`
 
 ---
 

@@ -59,6 +59,17 @@ export interface Message {
   processed: boolean
 }
 
+export interface Summary {
+  id: number
+  summaryDate: string
+  content: string
+  messageCount: number
+  todoCount: number
+  noteCount: number
+  llmMode: string | null
+  createdAt: string
+}
+
 export interface PageResult<T> {
   list: T[]
   total: number

@@ -80,4 +80,13 @@ export function registerBuiltinWidgets() {
     defaultH: 8,
     component: defineAsyncComponent(() => import('./MessageWidget.vue'))
   })
+  registerWidget({
+    type: 'summary',
+    name: '每日总结',
+    description: 'AI 生成的每日工作总结',
+    icon: 'summary',
+    defaultW: 6,
+    defaultH: 8,
+    component: defineAsyncComponent(() => import('./SummaryWidget.vue'))
+  })
 }
