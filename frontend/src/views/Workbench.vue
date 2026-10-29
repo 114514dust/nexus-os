@@ -3,15 +3,20 @@
     <header class="topbar">
       <div class="brand">中枢 Nexus</div>
       <div class="actions">
-        <button class="btn" @click="panelOpen = !panelOpen">添加组件</button>
-        <button class="btn primary" :disabled="store.saving" @click="store.save()">
-          {{ store.saving ? '保存中…' : '保存布局' }}
+        <button class="btn" :class="{ active: editMode }" @click="toggleEdit">
+          {{ editMode ? '退出 DIY' : 'DIY 模式' }}
         </button>
+        <template v-if="editMode">
+          <button class="btn" @click="panelOpen = !panelOpen">添加组件</button>
+          <button class="btn primary" :disabled="store.saving" @click="store.save()">
+            {{ store.saving ? '保存中…' : '保存布局' }}
+          </button>
+        </template>
       </div>
     </header>
 
     <transition name="fade">
-      <div v-if="panelOpen" class="panel">
+      <div v-if="editMode && panelOpen" class="panel">
         <button v-for="def in defs" :key="def.type" class="panel-card" @click="addWidget(def)">
           <div class="panel-name">{{ def.name }}</div>
           <div class="panel-desc">{{ def.description }}</div>
@@ -19,13 +24,13 @@
       </div>
     </transition>
 
-    <main class="canvas">
+    <main class="canvas" :class="{ editing: editMode }">
       <GridLayout
         v-model:layout="store.items"
         :col-num="12"
         :row-height="60"
-        :is-draggable="true"
-        :is-resizable="true"
+        :is-draggable="editMode"
+        :is-resizable="editMode"
         :vertical-compact="true"
         :margin="[12, 12]"
         @layout-updated="scheduleSave"
@@ -40,7 +45,7 @@
           :h="item.h"
         >
           <WidgetRenderer :type="item.widgetType" :config="item.config" />
-          <div class="widget-tools">
+          <div v-if="editMode" class="widget-tools">
             <button
               v-if="hasConfig(item.widgetType)"
               class="tool config"
@@ -55,7 +60,7 @@
       </GridLayout>
 
       <div v-if="store.items.length === 0" class="hint">
-        点击右上角「添加组件」，开始搭建你的工作台
+        点击右上角「DIY 模式」，开始搭建你的工作台
       </div>
     </main>
 
@@ -86,6 +91,7 @@ const store = useLayoutStore()
 const defs = ref<WidgetDefinition[]>([])
 const panelOpen = ref(false)
 const configIdx = ref<number | null>(null)
+const editMode = ref(false)
 let saveTimer: number | undefined
 
 const configMeta = computed(() =>
@@ -104,6 +110,16 @@ onMounted(async () => {
     /* 目录加载失败不阻塞工作台 */
   }
 })
+
+function toggleEdit() {
+  editMode.value = !editMode.value
+  if (!editMode.value) {
+    // 退出 DIY：收起添加面板、关闭配置面板，并立即持久化布局改动
+    panelOpen.value = false
+    closeConfig()
+    store.save()
+  }
+}
 
 function addWidget(def: WidgetDefinition) {
   const meta = getWidget(def.type)

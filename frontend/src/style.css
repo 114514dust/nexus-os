@@ -54,6 +54,12 @@ button {
   color: #fff;
 }
 
+.btn.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
 /* 工作台 */
 .workbench {
   min-height: 100vh;
@@ -119,6 +125,15 @@ button {
   overflow: auto;
 }
 
+/* DIY 编辑模式：组件虚线边框提示可操作 */
+.canvas.editing .widget {
+  border: 1px dashed var(--accent);
+}
+
+.canvas.editing .widget-head {
+  padding-right: 56px;
+}
+
 /* 组件卡片 */
 .widget {
   position: relative;
@@ -151,12 +166,7 @@ button {
   right: 4px;
   display: flex;
   gap: 4px;
-  opacity: 0;
-  transition: opacity 0.15s;
-}
-
-.grid-item:hover .widget-tools {
-  opacity: 1;
+  z-index: 2;
 }
 
 .tool {
