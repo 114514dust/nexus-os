@@ -71,4 +71,13 @@ export function registerBuiltinWidgets() {
     ],
     component: defineAsyncComponent(() => import('./LinksWidget.vue'))
   })
+  registerWidget({
+    type: 'message',
+    name: '消息流',
+    description: '汇聚各来源的消息',
+    icon: 'message',
+    defaultW: 6,
+    defaultH: 8,
+    component: defineAsyncComponent(() => import('./MessageWidget.vue'))
+  })
 }

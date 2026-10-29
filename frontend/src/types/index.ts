@@ -49,6 +49,23 @@ export interface Link {
   createdAt: string
 }
 
+export interface Message {
+  id: number
+  source: string
+  channel: string | null
+  sender: string | null
+  content: string
+  receivedAt: string
+  processed: boolean
+}
+
+export interface PageResult<T> {
+  list: T[]
+  total: number
+  page: number
+  size: number
+}
+
 export interface ApiResponse<T> {
   code: number
   message: string
