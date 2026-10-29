@@ -80,6 +80,18 @@ export interface Subscription {
   createdAt: string
 }
 
+export interface AlgorithmQuestion {
+  id: number
+  title: string
+  difficulty: string // easy | medium | hard
+  leetcodeUrl: string
+  frequency: number // 面试出现频率（热度）
+  star: number // 用户自评星级 0~5
+  note: string | null // 解题思路 / 代码笔记
+  createdAt: string
+  updatedAt: string
+}
+
 export interface LlmSettings {
   apiKey: string
   baseUrl: string

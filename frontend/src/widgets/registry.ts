@@ -119,4 +119,14 @@ export function registerBuiltinWidgets() {
     configSchema: [{ key: 'title', label: '标题', type: 'text', default: '订阅管理' }],
     component: defineAsyncComponent(() => import('./SubscriptionWidget.vue'))
   })
+  registerWidget({
+    type: 'algorithm',
+    name: '高频算法题',
+    description: '对标 CodeTop 的面试高频题，可标星级、记笔记、跳转 LeetCode',
+    icon: 'algorithm',
+    defaultW: 6,
+    defaultH: 10,
+    configSchema: [{ key: 'title', label: '标题', type: 'text', default: '高频算法题' }],
+    component: defineAsyncComponent(() => import('./AlgorithmWidget.vue'))
+  })
 }

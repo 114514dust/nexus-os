@@ -1051,3 +1051,206 @@ button {
   opacity: 0;
   transform: translateY(-8px);
 }
+
+/* ===== 高频算法题组件 ===== */
+.algo-widget {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.algo-toolbar {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.algo-search {
+  flex: 1;
+  min-width: 120px;
+}
+
+.algo-select {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  padding: 5px 6px;
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+.algo-select:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.algo-add-btn {
+  flex-shrink: 0;
+}
+
+.algo-add-form {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.algo-add-form input {
+  flex: 1;
+  min-width: 120px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  padding: 6px 8px;
+  font-size: 13px;
+}
+
+.algo-add-form input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.algo-search {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  padding: 6px 8px;
+  font-size: 13px;
+}
+
+.algo-search:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.algo-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 440px;
+  overflow-y: auto;
+}
+
+.algo-item {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 6px 8px;
+  background: var(--surface);
+}
+
+.algo-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.algo-diff {
+  flex-shrink: 0;
+  font-size: 11px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  border: 1px solid;
+  line-height: 1.4;
+}
+
+.algo-diff.easy {
+  color: #4caf7d;
+  border-color: #4caf7d;
+}
+
+.algo-diff.medium {
+  color: #e6a23c;
+  border-color: #e6a23c;
+}
+
+.algo-diff.hard {
+  color: var(--danger);
+  border-color: var(--danger);
+}
+
+.algo-title {
+  flex: 1;
+  min-width: 0;
+  color: var(--text);
+  text-decoration: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+}
+
+.algo-title:hover {
+  color: var(--accent);
+}
+
+.algo-freq {
+  flex-shrink: 0;
+  font-size: 12px;
+  color: var(--text-2);
+}
+
+.algo-stars {
+  flex-shrink: 0;
+  display: flex;
+}
+
+.algo-star {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 14px;
+  line-height: 1;
+  color: #3a4150;
+  cursor: pointer;
+}
+
+.algo-star.on {
+  color: #f5b942;
+}
+
+.algo-note-btn,
+.algo-del {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--text-2);
+}
+
+.algo-note-btn.has {
+  color: var(--accent);
+}
+
+.algo-del {
+  font-size: 15px;
+  line-height: 1;
+}
+
+.algo-del:hover {
+  color: var(--danger);
+}
+
+.algo-note {
+  margin-top: 6px;
+}
+
+.algo-note textarea {
+  width: 100%;
+  min-height: 90px;
+  resize: vertical;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  padding: 6px 8px;
+  font-size: 13px;
+  font-family: 'Consolas', 'Courier New', monospace;
+}
+
+.algo-note textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+}
