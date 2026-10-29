@@ -4,12 +4,14 @@ import lombok.Data;
 
 import javax.persistence.Column;
 import javax.persistence.Entity;
+import javax.persistence.GeneratedValue;
+import javax.persistence.GenerationType;
 import javax.persistence.Id;
 import javax.persistence.Table;
 import java.time.LocalDateTime;
 
 /**
- * 工作台布局（单用户，id 固定为 1），items 以 JSON 数组存储。
+ * 页面布局（每个页面一条记录），items 以 JSON 数组存储。
  */
 @Data
 @Entity
@@ -17,7 +19,11 @@ import java.time.LocalDateTime;
 public class Layout {
 
     @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    @Column(name = "page_id", nullable = false)
+    private Long pageId;
 
     @Column(name = "items_json", nullable = false, columnDefinition = "TEXT")
     private String itemsJson;

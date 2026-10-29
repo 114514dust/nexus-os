@@ -9,10 +9,10 @@ export const useLayoutStore = defineStore('layout', {
     saving: false
   }),
   actions: {
-    async load() {
+    async load(pageId: number) {
       this.loading = true
       try {
-        const layout = await fetchLayout()
+        const layout = await fetchLayout(pageId)
         this.items = layout.items.map((it, idx) => ({
           ...it,
           i: `${it.widgetType}-${idx}-${Date.now()}`
@@ -21,11 +21,11 @@ export const useLayoutStore = defineStore('layout', {
         this.loading = false
       }
     },
-    async save() {
+    async save(pageId: number) {
       this.saving = true
       try {
         const items: LayoutItemDto[] = this.items.map(({ i: _i, ...rest }) => rest)
-        await saveLayout({ items })
+        await saveLayout(pageId, { items })
       } finally {
         this.saving = false
       }

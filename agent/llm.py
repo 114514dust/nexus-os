@@ -26,11 +26,20 @@ def _build_prompt(raw_text: str, date: str) -> str:
     )
 
 
-def _call_openai_compatible(prompt: str) -> str:
-    """调用 OpenAI 兼容的 /chat/completions 接口。"""
-    url = config.LLM_BASE_URL.rstrip("/") + "/chat/completions"
+def _call_openai_compatible(prompt: str, llm_config=None) -> str:
+    """调用 OpenAI 兼容的 /chat/completions 接口。
+
+    llm_config 为前端动态传入的配置（{apiKey, baseUrl, model}），优先于环境变量；
+    缺失时回退到 config 的环境变量。
+    """
+    cfg = llm_config or {}
+    base = (cfg.get("baseUrl") or config.LLM_BASE_URL).rstrip("/")
+    url = base + "/chat/completions"
+    api_key = cfg.get("apiKey") or config.LLM_API_KEY
+    model = cfg.get("model") or config.LLM_MODEL
+
     payload = {
-        "model": config.LLM_MODEL,
+        "model": model,
         "messages": [
             {
                 "role": "system",
@@ -40,7 +49,7 @@ def _call_openai_compatible(prompt: str) -> str:
         ],
         "temperature": 0.3,
     }
-    headers = {"Authorization": f"Bearer {config.LLM_API_KEY}"}
+    headers = {"Authorization": f"Bearer {api_key}"}
     with httpx.Client(timeout=90) as client:
         resp = client.post(url, json=payload, headers=headers)
         resp.raise_for_status()
@@ -52,13 +61,18 @@ def _rule_based_summary(raw_text: str, date: str) -> str:
     """规则式降级总结：不调大模型，基于结构化统计生成，保证链路可用。"""
     return (
         f"## {date} 每日总结\n\n"
-        f"（当前未配置大模型，以下为规则式统计总结。配置 LLM_API_KEY 后即切换为智能总结。）\n\n"
+        f"（当前未配置大模型，以下为规则式统计总结。在前端「设置」里配置 API Key 后即切换为智能总结。）\n\n"
         f"{raw_text}"
     )
 
 
-def summarize(raw_text: str, date: str) -> str:
-    """对聚合后的原始信息生成总结。有 LLM 则智能总结，否则规则式降级。"""
+def summarize(raw_text: str, date: str, llm_config=None) -> str:
+    """对聚合后的原始信息生成总结。
+
+    优先级：前端动态配置（llm_config.apiKey）> 环境变量 > 规则式降级。
+    """
+    if llm_config and llm_config.get("apiKey"):
+        return _call_openai_compatible(_build_prompt(raw_text, date), llm_config)
     if config.llm_enabled():
         return _call_openai_compatible(_build_prompt(raw_text, date))
     return _rule_based_summary(raw_text, date)

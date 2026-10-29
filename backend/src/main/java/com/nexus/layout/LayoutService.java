@@ -13,21 +13,20 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * 工作台布局服务（单用户，id 固定 1）。
+ * 布局服务：按页面维度读写布局。
  */
 @Service
 @RequiredArgsConstructor
 public class LayoutService {
 
-    private static final long DEFAULT_LAYOUT_ID = 1L;
     private static final TypeReference<List<LayoutItemDto>> ITEM_LIST = new TypeReference<>() {};
 
     private final LayoutRepository layoutRepository;
     private final ObjectMapper objectMapper;
 
     @Transactional(readOnly = true)
-    public LayoutDto get() {
-        Layout layout = layoutRepository.findById(DEFAULT_LAYOUT_ID)
+    public LayoutDto get(Long pageId) {
+        Layout layout = layoutRepository.findByPageId(pageId)
                 .orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND, "布局不存在"));
         LayoutDto dto = new LayoutDto();
         dto.setItems(parse(layout.getItemsJson()));
@@ -35,9 +34,9 @@ public class LayoutService {
     }
 
     @Transactional
-    public LayoutDto save(LayoutDto dto) {
-        Layout layout = layoutRepository.findById(DEFAULT_LAYOUT_ID).orElseGet(Layout::new);
-        layout.setId(DEFAULT_LAYOUT_ID);
+    public LayoutDto save(Long pageId, LayoutDto dto) {
+        Layout layout = layoutRepository.findByPageId(pageId).orElseGet(Layout::new);
+        layout.setPageId(pageId);
         layout.setItemsJson(write(dto.getItems()));
         layout.setUpdatedAt(LocalDateTime.now());
         layoutRepository.save(layout);

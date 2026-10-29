@@ -2,12 +2,14 @@
 
 一个**个人 OS（Personal OS）**：把所有工作收拢到一处，让 AI 替你处理信息、沉淀记忆、主动办事。
 
-当前已完成 **MVP 四个 Phase**（V0 · 打通闭环）：
+当前已完成 **Phase 1 ~ 6**（V0 打通闭环，V1 进行中）：
 
 - **Phase 1** 工作台组件 DIY：可拖拽布局 + Widget SDK
 - **Phase 2** 组件配置化与持久化：便签/快捷链接落库 + 配置面板
 - **Phase 3** 消息接入：统一消息模型 + 通用 webhook
 - **Phase 4** 每日总结 Agent：LangGraph 编排 + 可插拔 LLM + 定时消化
+- **Phase 5** 组件配置增强 + 订阅推送：RSS/B站抓取 + 去重入流
+- **Phase 6** 设置面板 + 多页面 DIY：LLM 前端配置 + 左侧页面导航
 
 > 完整设计见 `个人工作台系统设计文档.md`，开发计划见 `docs/01`，进度见 `进度.md`。
 
@@ -30,7 +32,10 @@ nexus-os/
 │       ├── config/          # 配置（CORS、应用属性）
 │       ├── common/          # 统一响应、错误体系、全局异常处理、分页
 │       ├── widget/          # 组件目录
-│       ├── layout/          # 布局持久化
+│       ├── layout/          # 布局持久化（按页面）
+│       ├── page/            # 页面（多页面工作台）
+│       ├── setting/         # 应用设置（LLM 配置）
+│       ├── subscription/    # 订阅源 + 抓取
 │       ├── todo/            # 待办 CRUD
 │       ├── note/            # 便签 CRUD
 │       ├── link/            # 快捷链接 CRUD
@@ -76,7 +81,10 @@ python -m pip install -r requirements.txt
 python -m uvicorn app:app --host 127.0.0.1 --port 9001
 ```
 
-未配置 LLM key 时自动走**规则式降级**（不调大模型，链路仍可用）。配置以下环境变量后切换为智能总结：
+未配置 LLM key 时自动走**规则式降级**（不调大模型，链路仍可用）。配置方式有两种（前端设置优先级更高）：
+
+1. **前端设置**：工作台右上角「设置」，直接填 API Key / Base URL / 模型
+2. **环境变量**：
 
 | 变量 | 说明 | 示例 |
 |---|---|---|
@@ -108,7 +116,10 @@ docker compose up --build
 | 方法 | 路径 | 说明 |
 |---|---|---|
 | GET | `/api/widgets` | 组件目录 |
-| GET / PUT | `/api/layout` | 读取 / 保存布局 |
+| GET / POST | `/api/pages` | 页面列表 / 新建 |
+| PUT / DELETE | `/api/pages/{id}` | 重命名 / 删除页面 |
+| GET / PUT | `/api/pages/{id}/layout` | 读 / 保存某页布局 |
+| GET / PUT | `/api/settings` | 读取 / 更新 LLM 设置 |
 | GET / POST | `/api/todos` | 待办列表 / 新建 |
 | PUT / DELETE | `/api/todos/{id}` | 更新 / 删除待办 |
 | GET / POST | `/api/notes` | 便签列表 / 新建 |

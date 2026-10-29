@@ -12,7 +12,7 @@
 """
 from __future__ import annotations
 
-from typing import Any, Dict, List, TypedDict
+from typing import Any, Dict, List, Optional, TypedDict
 
 from langgraph.graph import END, StateGraph
 
@@ -26,6 +26,7 @@ class SummaryState(TypedDict):
     notes: List[Dict[str, Any]]
     raw_text: str
     summary: str
+    llm_config: Optional[Dict[str, Any]]
 
 
 def fetch_node(state: SummaryState) -> Dict[str, Any]:
@@ -60,8 +61,8 @@ def aggregate_node(state: SummaryState) -> Dict[str, Any]:
 
 
 def summarize_node(state: SummaryState) -> Dict[str, Any]:
-    """总结：调用可插拔 LLM（有 key 智能总结，无 key 规则式降级）。"""
-    summary = llm.summarize(state["raw_text"], state["date"])
+    """总结：调用可插拔 LLM（优先动态配置，其次环境变量，最后规则式降级）。"""
+    summary = llm.summarize(state["raw_text"], state["date"], state.get("llm_config"))
     return {"summary": summary}
 
 

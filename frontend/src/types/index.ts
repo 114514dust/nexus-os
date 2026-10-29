@@ -80,6 +80,19 @@ export interface Subscription {
   createdAt: string
 }
 
+export interface LlmSettings {
+  apiKey: string
+  baseUrl: string
+  model: string
+}
+
+export interface Page {
+  id: number
+  name: string
+  sortOrder: number
+  createdAt: string
+}
+
 export interface PageResult<T> {
   list: T[]
   total: number

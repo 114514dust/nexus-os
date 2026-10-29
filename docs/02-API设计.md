@@ -179,6 +179,28 @@
 
 **订阅对象**：`{ "id": 1, "type": "rss", "name": "阮一峰的网络日志", "url": "https://...", "enabled": true, "lastFetchedAt": "...", "createdAt": "..." }`
 
+### 设置（✅ Phase 6）
+
+| 方法 | 路径 | 说明 |
+|---|---|---|
+| GET | `/api/settings` | 读取 LLM 配置 |
+| PUT | `/api/settings` | 更新 LLM 配置（仅更新非空字段） |
+
+**设置对象**：`{ "apiKey": "sk-...", "baseUrl": "https://api.deepseek.com", "model": "deepseek-chat" }`
+
+### 页面（✅ Phase 6）
+
+| 方法 | 路径 | 说明 |
+|---|---|---|
+| GET | `/api/pages` | 页面列表（按 sortOrder 排序） |
+| POST | `/api/pages` | 新建页面（自动初始化空布局） |
+| PUT | `/api/pages/{id}` | 重命名页面 |
+| DELETE | `/api/pages/{id}` | 删除页面（级联删布局，至少保留一页） |
+| GET | `/api/pages/{id}/layout` | 读某页布局 |
+| PUT | `/api/pages/{id}/layout` | 保存某页布局 |
+
+**页面对象**：`{ "id": 1, "name": "工作", "sortOrder": 0, "createdAt": "..." }`
+
 ---
 
 ## 六、接口开发规范
