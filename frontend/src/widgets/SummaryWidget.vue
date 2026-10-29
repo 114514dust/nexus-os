@@ -9,7 +9,7 @@
           {{ store.summary.llmMode === 'enabled' ? 'AI' : '规则降级' }}
         </span>
       </span>
-      <button class="btn digest" :disabled="store.digesting" @click="store.digest()">
+      <button class="btn digest" :disabled="store.digesting" @click="handleDigest">
         {{ store.digesting ? '生成中…' : '生成总结' }}
       </button>
     </div>
@@ -24,6 +24,7 @@
 import { computed, onMounted, onUnmounted } from 'vue'
 import { useSummaryStore } from '@/stores/summaries'
 import { renderMarkdown } from '@/utils/markdown'
+import { toastError, friendlyError } from '@/utils/toast'
 
 const props = defineProps<{ config?: Record<string, any> }>()
 
@@ -35,6 +36,14 @@ const autoRefresh = computed(() => props.config?.autoRefresh ?? false)
 const rendered = computed(() =>
   store.summary ? renderMarkdown(store.summary.content) : ''
 )
+
+async function handleDigest() {
+  try {
+    await store.digest()
+  } catch (err) {
+    toastError('生成总结失败：' + friendlyError(err))
+  }
+}
 
 onMounted(() => {
   store.load()

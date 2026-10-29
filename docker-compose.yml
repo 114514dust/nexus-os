@@ -1,4 +1,15 @@
 services:
+  nexus-agent:
+    build: ./agent
+    container_name: nexus-agent
+    ports:
+      - "9001:9001"
+    environment:
+      # LLM 兜底配置：优先走前端设置面板（存库后由 Java 透传），这里作为无 UI 场景的环境变量降级
+      - LLM_API_KEY=${LLM_API_KEY:-}
+      - LLM_BASE_URL=${LLM_BASE_URL:-https://api.openai.com/v1}
+      - LLM_MODEL=${LLM_MODEL:-gpt-4o-mini}
+
   nexus-server:
     build: ./backend
     container_name: nexus-server
@@ -6,6 +17,10 @@ services:
       - "8080:8080"
     environment:
       - NEXUS_CORS_ORIGINS=http://localhost
+      # 通过容器服务名访问 Agent，替代本机的 127.0.0.1
+      - NEXUS_AGENT_BASE_URL=http://nexus-agent:9001
+    depends_on:
+      - nexus-agent
     volumes:
       - nexus-data:/app/data
 

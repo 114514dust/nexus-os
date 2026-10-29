@@ -998,3 +998,56 @@ button {
   border-color: var(--danger);
   color: var(--danger);
 }
+
+/* ===== 全局 toast 提示 ===== */
+.toast-host {
+  position: fixed;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  pointer-events: none;
+}
+
+.toast {
+  max-width: 480px;
+  padding: 10px 18px;
+  border-radius: 8px;
+  background: var(--surface-2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  font-size: 13px;
+  line-height: 1.5;
+  text-align: center;
+}
+
+.toast.error {
+  border-color: var(--danger);
+  background: rgba(226, 85, 85, 0.14);
+}
+
+.toast.success {
+  border-color: #4caf7d;
+  background: rgba(76, 175, 125, 0.14);
+}
+
+.toast.info {
+  border-color: var(--accent);
+  background: rgba(91, 140, 255, 0.14);
+}
+
+.toast-enter-active,
+.toast-leave-active {
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+
+.toast-enter-from,
+.toast-leave-to {
+  opacity: 0;
+  transform: translateY(-8px);
+}
