@@ -1,0 +1,9 @@
+# IDE 工作数据
+.workbuddy/
+
+# 系统/编辑器
+.DS_Store
+Thumbs.db
+*.log
+.idea/
+.vscode/
