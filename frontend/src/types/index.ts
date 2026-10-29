@@ -70,6 +70,16 @@ export interface Summary {
   createdAt: string
 }
 
+export interface Subscription {
+  id: number
+  type: string
+  name: string
+  url: string
+  enabled: boolean
+  lastFetchedAt: string | null
+  createdAt: string
+}
+
 export interface PageResult<T> {
   list: T[]
   total: number

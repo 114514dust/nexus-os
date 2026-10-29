@@ -2,7 +2,7 @@
   <div class="message-widget">
     <div class="msg-toolbar">
       <span class="count">{{ store.total }} 条</span>
-      <button class="btn refresh" :disabled="store.loading" @click="store.load()">刷新</button>
+      <button class="btn refresh" :disabled="store.loading" @click="reload">刷新</button>
     </div>
     <ul class="msg-list">
       <li v-for="m in store.items" :key="m.id" class="msg-item">
@@ -20,17 +20,30 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, onUnmounted } from 'vue'
+import { computed, onMounted, onUnmounted } from 'vue'
 import { useMessageStore } from '@/stores/messages'
 
-defineProps<{ config?: Record<string, any> }>()
+const props = defineProps<{ config?: Record<string, any> }>()
 
 const store = useMessageStore()
 let timer: number | undefined
 
+const refreshInterval = computed(() => {
+  const v = Number(props.config?.refreshInterval ?? 15)
+  return v > 0 ? v : 15
+})
+const pageSize = computed(() => {
+  const v = Number(props.config?.pageSize ?? 50)
+  return v > 0 ? v : 50
+})
+
+function reload() {
+  store.load(0, pageSize.value)
+}
+
 onMounted(() => {
-  store.load()
-  timer = window.setInterval(() => store.load(), 15000)
+  reload()
+  timer = window.setInterval(reload, refreshInterval.value * 1000)
 })
 
 onUnmounted(() => {

@@ -118,6 +118,10 @@ docker compose up --build
 | GET / POST | `/api/messages` | 消息分页列表 / 接收（通用 webhook） |
 | POST | `/api/summaries/digest` | 手动触发每日总结消化 |
 | GET | `/api/summaries/latest` | 查询最新总结 |
+| GET / POST | `/api/subscriptions` | 订阅源列表 / 新建（rss/bilibili） |
+| PUT / DELETE | `/api/subscriptions/{id}` | 启用停用 / 删除订阅 |
+| POST | `/api/subscriptions/{id}/fetch` | 手动抓取单个订阅 |
+| POST | `/api/subscriptions/fetch-all` | 抓取所有启用订阅 |
 
 ## 环境变量
 
@@ -126,4 +130,5 @@ docker compose up --build
 | `NEXUS_CORS_ORIGINS` | `http://localhost:5173` | 允许的前端来源（逗号分隔） |
 | `NEXUS_AGENT_BASE_URL` | `http://127.0.0.1:9001` | Python Agent 服务地址 |
 | `NEXUS_DIGEST_CRON` | `0 30 23 * * *` | 每日总结定时触发 cron |
+| `NEXUS_FEED_CRON` | `0 */30 * * * *` | 订阅抓取定时触发 cron（每 30 分钟） |
 | `LLM_API_KEY` / `LLM_BASE_URL` / `LLM_MODEL` | - | 真实大模型配置（Agent 侧，缺省走降级） |

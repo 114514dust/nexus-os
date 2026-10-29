@@ -5,22 +5,29 @@
       <button class="btn" @click="add">添加</button>
     </div>
     <ul class="todo-list">
-      <li v-for="t in store.items" :key="t.id" :class="{ done: t.done }">
+      <li v-for="t in visibleItems" :key="t.id" :class="{ done: t.done }">
         <input type="checkbox" :checked="t.done" @change="store.toggle(t)" />
         <span>{{ t.content }}</span>
         <button class="del" title="删除" @click="store.remove(t.id)">×</button>
       </li>
-      <li v-if="store.items.length === 0" class="empty">暂无待办</li>
+      <li v-if="visibleItems.length === 0" class="empty">暂无待办</li>
     </ul>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { computed, ref, onMounted } from 'vue'
 import { useTodoStore } from '@/stores/todos'
+
+const props = defineProps<{ config?: Record<string, any> }>()
 
 const store = useTodoStore()
 const text = ref('')
+
+const showDone = computed(() => props.config?.showDone ?? true)
+const visibleItems = computed(() =>
+  showDone.value ? store.items : store.items.filter((t) => !t.done)
+)
 
 onMounted(() => store.load())
 

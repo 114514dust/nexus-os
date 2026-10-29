@@ -21,14 +21,24 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted } from 'vue'
+import { computed, onMounted, onUnmounted } from 'vue'
 import { useSummaryStore } from '@/stores/summaries'
 
-defineProps<{ config?: Record<string, any> }>()
+const props = defineProps<{ config?: Record<string, any> }>()
 
 const store = useSummaryStore()
+let timer: number | undefined
+
+const autoRefresh = computed(() => props.config?.autoRefresh ?? false)
 
 onMounted(() => {
   store.load()
+  if (autoRefresh.value) {
+    timer = window.setInterval(() => store.load(), 60000)
+  }
+})
+
+onUnmounted(() => {
+  if (timer) window.clearInterval(timer)
 })
 </script>

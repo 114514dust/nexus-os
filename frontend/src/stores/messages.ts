@@ -9,12 +9,12 @@ export const useMessageStore = defineStore('messages', {
     loading: false
   }),
   actions: {
-    async load() {
+    async load(page = 0, size = 50) {
       this.loading = true
       try {
-        const page = await fetchMessages(0, 50)
-        this.items = page.list
-        this.total = page.total
+        const result = await fetchMessages(page, size)
+        this.items = result.list
+        this.total = result.total
       } finally {
         this.loading = false
       }

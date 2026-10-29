@@ -166,6 +166,19 @@
 
 **总结对象**：`{ "id": 1, "summaryDate": "2026-10-29", "content": "## ...", "messageCount": 4, "todoCount": 1, "noteCount": 1, "llmMode": "rule-based", "createdAt": "..." }`
 
+### 订阅（✅ Phase 5）
+
+| 方法 | 路径 | 说明 |
+|---|---|---|
+| GET | `/api/subscriptions` | 订阅源列表 |
+| POST | `/api/subscriptions` | 新建订阅（type=rss/bilibili） |
+| DELETE | `/api/subscriptions/{id}` | 删除订阅（级联清空去重记录） |
+| PUT | `/api/subscriptions/{id}/toggle` | 启用/停用订阅 |
+| POST | `/api/subscriptions/{id}/fetch` | 手动抓取单个订阅，返回新增条数 |
+| POST | `/api/subscriptions/fetch-all` | 抓取所有启用订阅 |
+
+**订阅对象**：`{ "id": 1, "type": "rss", "name": "阮一峰的网络日志", "url": "https://...", "enabled": true, "lastFetchedAt": "...", "createdAt": "..." }`
+
 ---
 
 ## 六、接口开发规范

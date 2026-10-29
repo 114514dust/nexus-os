@@ -578,3 +578,113 @@ button {
   border: none;
   margin: 0;
 }
+
+/* 订阅管理 */
+.sub-form {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+
+.sub-form input,
+.sub-type-select {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  padding: 6px 8px;
+  font-size: 13px;
+}
+
+.sub-form input {
+  flex: 1;
+  min-width: 0;
+}
+
+.sub-form input:focus,
+.sub-type-select:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.sub-msg {
+  background: var(--surface-2);
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  padding: 4px 10px;
+  font-size: 12px;
+  color: var(--accent);
+  margin-bottom: 8px;
+}
+
+.sub-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.sub-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 6px 10px;
+}
+
+.sub-item.disabled .sub-name {
+  color: var(--text-2);
+  text-decoration: line-through;
+}
+
+.sub-type {
+  flex-shrink: 0;
+  font-size: 11px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  color: #fff;
+}
+
+.sub-type.rss {
+  background: #e67e22;
+}
+
+.sub-type.bilibili {
+  background: #fb7299;
+}
+
+.sub-name {
+  flex: 1;
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sub-btn {
+  flex-shrink: 0;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-2);
+  border-radius: 6px;
+  padding: 3px 8px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.sub-btn:hover {
+  border-color: var(--accent);
+  color: var(--text);
+}
+
+.sub-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.sub-btn.del:hover {
+  border-color: var(--danger);
+  color: var(--danger);
+}
