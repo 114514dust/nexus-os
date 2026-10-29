@@ -1,0 +1,275 @@
+:root {
+  --bg: #0e1014;
+  --surface: #171a21;
+  --surface-2: #1f232c;
+  --border: #2a2f3a;
+  --text: #e7e9ee;
+  --text-2: #9aa2af;
+  --accent: #5b8cff;
+  --danger: #e25555;
+  --radius: 10px;
+  font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.btn {
+  background: var(--surface-2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 6px 14px;
+  font-size: 13px;
+  transition: border-color 0.15s;
+}
+
+.btn:hover {
+  border-color: var(--accent);
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+/* 工作台 */
+.workbench {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.topbar {
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.brand {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.actions {
+  display: flex;
+  gap: 10px;
+}
+
+.panel {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 12px;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.panel-card {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px;
+  text-align: left;
+  color: var(--text);
+  transition: border-color 0.15s;
+}
+
+.panel-card:hover {
+  border-color: var(--accent);
+}
+
+.panel-name {
+  font-weight: 600;
+}
+
+.panel-desc {
+  font-size: 12px;
+  color: var(--text-2);
+}
+
+.canvas {
+  flex: 1;
+  padding: 16px;
+  overflow: auto;
+}
+
+/* 组件卡片 */
+.widget {
+  position: relative;
+  height: 100%;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.widget-head {
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+  color: var(--text-2);
+  user-select: none;
+}
+
+.widget-body {
+  flex: 1;
+  padding: 12px;
+  overflow: auto;
+}
+
+.remove {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 22px;
+  height: 22px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-2);
+  font-size: 16px;
+  line-height: 1;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.grid-item:hover .remove {
+  opacity: 1;
+}
+
+.remove:hover {
+  background: var(--danger);
+  color: #fff;
+}
+
+/* 时钟 */
+.clock .time {
+  font-size: 32px;
+  font-weight: 600;
+}
+
+.clock .date {
+  color: var(--text-2);
+}
+
+/* 待办 */
+.todo-input {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.todo-input input {
+  flex: 1;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  padding: 6px 10px;
+}
+
+.todo-input input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.todo-list {
+  list-style: none;
+}
+
+.todo-list li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+}
+
+.todo-list li.done span {
+  color: var(--text-2);
+  text-decoration: line-through;
+}
+
+.todo-list .del {
+  margin-left: auto;
+  border: none;
+  background: transparent;
+  color: var(--text-2);
+  font-size: 16px;
+}
+
+/* 便签 */
+.note-widget {
+  height: 100%;
+}
+
+.note-widget textarea {
+  width: 100%;
+  height: 100%;
+  min-height: 120px;
+  background: transparent;
+  border: none;
+  resize: none;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 14px;
+}
+
+.note-widget textarea:focus {
+  outline: none;
+}
+
+/* 快捷链接 */
+.links-widget {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.links-widget a {
+  color: var(--accent);
+  text-decoration: none;
+  padding: 4px 8px;
+  border-radius: 6px;
+}
+
+.links-widget a:hover {
+  background: var(--surface-2);
+}
+
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.15s;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}

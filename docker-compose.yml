@@ -1,0 +1,21 @@
+services:
+  nexus-server:
+    build: ./backend
+    container_name: nexus-server
+    ports:
+      - "8080:8080"
+    environment:
+      - NEXUS_CORS_ORIGINS=http://localhost
+    volumes:
+      - nexus-data:/app/data
+
+  nexus-web:
+    build: ./frontend
+    container_name: nexus-web
+    ports:
+      - "80:80"
+    depends_on:
+      - nexus-server
+
+volumes:
+  nexus-data:
