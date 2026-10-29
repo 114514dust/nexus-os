@@ -21,6 +21,10 @@ LLM_MODEL = _get("LLM_MODEL", "gpt-4o-mini")
 HOST = _get("AGENT_HOST", "127.0.0.1")
 PORT = int(_get("AGENT_PORT", "9001"))
 
+# ---- 后端 Java 服务地址（AI 操控组件时反向调用 Java REST API）----
+# 本地：http://127.0.0.1:8080；容器内：http://nexus-server:8080
+BACKEND_BASE_URL = _get("NEXUS_BACKEND_BASE_URL", "http://127.0.0.1:8080")
+
 
 def llm_enabled() -> bool:
     """是否配置了真实 LLM；未配置则走规则式降级。"""

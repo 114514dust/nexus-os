@@ -1484,3 +1484,122 @@ button {
 .markdown-body th {
   background: var(--surface-2);
 }
+
+/* ===== AI 对话组件 ===== */
+.chat-widget {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+.chat-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-right: 2px;
+}
+
+.chat-empty {
+  color: var(--text-2);
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+.chat-empty p {
+  margin-bottom: 4px;
+}
+
+.chat-empty ul {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.chat-empty li {
+  margin: 2px 0;
+}
+
+.chat-msg {
+  display: flex;
+}
+
+.chat-msg.user {
+  justify-content: flex-end;
+}
+
+.chat-msg.assistant {
+  justify-content: flex-start;
+}
+
+.chat-bubble {
+  max-width: 88%;
+  padding: 8px 12px;
+  border-radius: 12px;
+  font-size: 13px;
+  line-height: 1.6;
+  word-break: break-word;
+  white-space: pre-wrap;
+}
+
+.chat-msg.user .chat-bubble {
+  background: var(--accent);
+  color: #fff;
+  border-bottom-right-radius: 4px;
+}
+
+.chat-msg.assistant .chat-bubble {
+  background: var(--surface-2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-bottom-left-radius: 4px;
+}
+
+.chat-bubble.typing {
+  color: var(--text-2);
+  font-style: italic;
+}
+
+/* 助手气泡内的 Markdown 排版微调（覆盖通用 markdown-body 的过宽间距） */
+.chat-msg.assistant .markdown-body {
+  font-size: 13px;
+  line-height: 1.65;
+}
+
+.chat-msg.assistant .markdown-body > *:first-child {
+  margin-top: 0;
+}
+
+.chat-msg.assistant .markdown-body > *:last-child {
+  margin-bottom: 0;
+}
+
+.chat-input-bar {
+  flex-shrink: 0;
+  display: flex;
+  gap: 6px;
+  align-items: flex-end;
+  margin-top: 10px;
+}
+
+.chat-input {
+  flex: 1;
+  min-width: 0;
+  resize: none;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  padding: 8px 10px;
+  font-size: 13px;
+  font-family: inherit;
+  line-height: 1.5;
+  max-height: 120px;
+}
+
+.chat-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}

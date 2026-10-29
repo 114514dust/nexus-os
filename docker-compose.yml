@@ -9,6 +9,8 @@ services:
       - LLM_API_KEY=${LLM_API_KEY:-}
       - LLM_BASE_URL=${LLM_BASE_URL:-https://api.openai.com/v1}
       - LLM_MODEL=${LLM_MODEL:-gpt-4o-mini}
+      # AI 对话操控组件时，反向调用 Java 后端（容器内用服务名访问）
+      - NEXUS_BACKEND_BASE_URL=http://nexus-server:8080
 
   nexus-server:
     build: ./backend

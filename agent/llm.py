@@ -9,6 +9,9 @@
 """
 from __future__ import annotations
 
+import json
+from typing import Any, Dict, List, Optional
+
 import httpx
 
 import config
@@ -76,3 +79,134 @@ def summarize(raw_text: str, date: str, llm_config=None) -> str:
     if config.llm_enabled():
         return _call_openai_compatible(_build_prompt(raw_text, date))
     return _rule_based_summary(raw_text, date)
+
+
+# ---------------------------------------------------------------------------
+# 对话（chat）与意图识别（classify）——供 Workflow 对话图使用
+# ---------------------------------------------------------------------------
+
+CHAT_SYSTEM = (
+    "你是 Nexus 个人工作台的智能助手。你熟悉用户工作台里的各类信息（待办、便签、快捷链接、"
+    "订阅源、消息、高频算法题、每日总结），回答简洁、务实、用中文。"
+)
+
+
+def _call_chat(messages: List[Dict[str, str]], llm_config=None, temperature: float = 0.3) -> str:
+    """调用 OpenAI 兼容的 /chat/completions 接口（多轮 messages 形式）。"""
+    cfg = llm_config or {}
+    base = (cfg.get("baseUrl") or config.LLM_BASE_URL).rstrip("/")
+    url = base + "/chat/completions"
+    api_key = cfg.get("apiKey") or config.LLM_API_KEY
+    model = cfg.get("model") or config.LLM_MODEL
+
+    payload = {"model": model, "messages": messages, "temperature": temperature}
+    headers = {"Authorization": f"Bearer {api_key}"}
+    with httpx.Client(timeout=90) as client:
+        resp = client.post(url, json=payload, headers=headers)
+        resp.raise_for_status()
+        data = resp.json()
+    return data["choices"][0]["message"]["content"].strip()
+
+
+def _llm_available(llm_config=None) -> bool:
+    """是否走真实 LLM（动态配置优先，其次环境变量）。"""
+    if llm_config and llm_config.get("apiKey"):
+        return True
+    return config.llm_enabled()
+
+
+def classify(message: str, tool_specs: str, llm_config=None, history: Optional[List[Dict[str, str]]] = None) -> Dict[str, Any]:
+    """意图识别：把用户消息归为「某工具 + 参数」或「纯闲聊」。
+
+    返回 {"intent": str, "params": dict}；纯闲聊时 intent == "chat"。
+    历史对话会一并提供给 LLM，以解析「刚才那条待办」这类多轮指代；
+    无 LLM 时走规则式关键词匹配降级，保证链路可跑通。
+    """
+    if _llm_available(llm_config):
+        history_text = ""
+        if history:
+            turns = [f"{h.get('role', 'user')}: {h.get('content', '')}" for h in history]
+            history_text = "最近对话历史：\n" + "\n".join(turns) + "\n\n"
+        prompt = (
+            f"你是工作台助手，负责识别用户意图并选择工具。\n\n"
+            f"可用工具清单：\n{tool_specs}\n\n"
+            f"{history_text}"
+            f"用户当前消息：{message}\n\n"
+            f"请只输出一个 JSON 对象，格式 {{\"intent\": \"工具名或chat\", \"params\": {{}}}}。\n"
+            f"规则：若用户只是普通闲聊/提问，intent 用 \"chat\"；若要操作或查询工作台数据，"
+            f"intent 用对应工具名，params 填工具所需参数。"
+            f"注意结合历史理解指代（如「刚才那条待办」应解析出具体 id）；"
+            f"若历史中找不到所需的 id 等参数，intent 用 \"chat\" 让助手追问，不要编造参数。"
+            f"不要输出 JSON 以外的任何内容。"
+        )
+        try:
+            raw = _call_chat(
+                [{"role": "system", "content": CHAT_SYSTEM}, {"role": "user", "content": prompt}],
+                llm_config,
+                temperature=0.0,
+            )
+            # 容错：LLM 可能输出 ```json ... ``` 包裹，去掉代码围栏
+            cleaned = raw.strip()
+            if cleaned.startswith("```"):
+                cleaned = cleaned.strip("`")
+                if cleaned.startswith("json"):
+                    cleaned = cleaned[4:]
+            start, end = cleaned.find("{"), cleaned.rfind("}")
+            if start >= 0 and end > start:
+                data = json.loads(cleaned[start : end + 1])
+                intent = str(data.get("intent", "chat")).strip()
+                params = data.get("params") or {}
+                if not isinstance(params, dict):
+                    params = {}
+                return {"intent": intent, "params": params}
+        except Exception:
+            pass  # LLM 解析失败 → 落到规则降级
+    return _rule_based_classify(message, history)
+
+
+def _rule_based_classify(message: str, history: Optional[List[Dict[str, str]]] = None) -> Dict[str, Any]:
+    """规则式意图识别（无 LLM 或 LLM 解析失败时兜底）。"""
+    m = message
+
+    def has(*kws):
+        return any(k in m for k in kws)
+
+    # 新增类操作优先于查询
+    if has("待办", "todo", "任务") and has("加", "新增", "添加", "记", "帮我记"):
+        return {"intent": "todo_add", "params": {"content": m}}
+    if has("便签", "笔记", "note") and has("加", "新增", "添加", "记", "写"):
+        return {"intent": "note_add", "params": {"content": m}}
+    if has("链接", "网址", "link") and has("加", "新增", "添加", "收藏"):
+        return {"intent": "link_add", "params": {"title": "", "url": ""}}
+    if has("待办", "todo", "任务") and has("完成", "标", "做完", "搞定"):
+        return {"intent": "todo_done", "params": {}}
+    if has("待办", "todo", "任务"):
+        return {"intent": "todo_list", "params": {}}
+    if has("便签", "笔记", "note"):
+        return {"intent": "note_list", "params": {}}
+    if has("链接", "网址", "link"):
+        return {"intent": "link_list", "params": {}}
+    if has("算法", "题", "leetcode", "刷题"):
+        return {"intent": "algorithm_search", "params": {}}
+    if has("订阅", "rss", "b站", "bilibili"):
+        return {"intent": "subscription_list", "params": {}}
+    if has("消息", "通知", "动态"):
+        return {"intent": "message_list", "params": {}}
+    if has("总结", "消化", "复盘"):
+        return {"intent": "summary_generate", "params": {}}
+    if has("全貌", "概览", "看看", "有哪些", "都有什么", "所有"):
+        return {"intent": "query_all", "params": {}}
+    return {"intent": "chat", "params": {}}
+
+
+def chat(messages: List[Dict[str, str]], llm_config=None) -> str:
+    """多轮对话回复。messages 形如 [{"role":"user"/"assistant","content":...}]。"""
+    if _llm_available(llm_config):
+        full = [{"role": "system", "content": CHAT_SYSTEM}] + messages
+        return _call_chat(full, llm_config)
+    last = messages[-1]["content"] if messages else ""
+    return (
+        "（当前未配置大模型，我暂时只能做关键词级的简单响应。"
+        "在前端「设置」里配置 API Key 后，我就能真正理解并操作你的工作台。）\n\n"
+        f"你刚才说：{last}"
+    )

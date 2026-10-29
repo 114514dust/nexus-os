@@ -105,6 +105,16 @@ export interface Page {
   createdAt: string
 }
 
+export interface ChatMessage {
+  role: 'user' | 'assistant'
+  content: string
+}
+
+export interface ChatReply {
+  reply: string
+  intent: string
+}
+
 export interface PageResult<T> {
   list: T[]
   total: number

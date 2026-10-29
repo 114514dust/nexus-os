@@ -129,4 +129,14 @@ export function registerBuiltinWidgets() {
     configSchema: [{ key: 'title', label: '标题', type: 'text', default: '高频算法题' }],
     component: defineAsyncComponent(() => import('./AlgorithmWidget.vue'))
   })
+  registerWidget({
+    type: 'chat',
+    name: 'AI 对话',
+    description: '基于 Workflow 编排的 AI 助手，可直接操控待办/便签/链接/算法题等组件',
+    icon: 'chat',
+    defaultW: 6,
+    defaultH: 10,
+    configSchema: [{ key: 'title', label: '标题', type: 'text', default: 'AI 对话' }],
+    component: defineAsyncComponent(() => import('./ChatWidget.vue'))
+  })
 }
