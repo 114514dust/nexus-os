@@ -8,9 +8,6 @@
         </button>
         <template v-if="editMode">
           <button class="btn" @click="panelOpen = !panelOpen">添加组件</button>
-          <button class="btn primary" :disabled="store.saving" @click="store.save()">
-            {{ store.saving ? '保存中…' : '保存布局' }}
-          </button>
         </template>
       </div>
     </header>
