@@ -15,6 +15,7 @@ export interface LayoutItemDto {
   y: number
   w: number
   h: number
+  config?: Record<string, any>
 }
 
 export interface LayoutDto {
@@ -30,6 +31,21 @@ export interface Todo {
   id: number
   content: string
   done: boolean
+  createdAt: string
+}
+
+export interface Note {
+  id: number
+  content: string
+  createdAt: string
+  updatedAt: string
+}
+
+export interface Link {
+  id: number
+  title: string
+  url: string
+  sortOrder: number
   createdAt: string
 }
 

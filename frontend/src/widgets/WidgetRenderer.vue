@@ -4,7 +4,7 @@
       <span>{{ meta?.name }}</span>
     </div>
     <div class="widget-body">
-      <component :is="meta?.component" />
+      <component :is="meta?.component" :config="config" />
     </div>
   </div>
 </template>
@@ -13,7 +13,7 @@
 import { computed } from 'vue'
 import { getWidget } from './registry'
 
-const props = defineProps<{ type: string }>()
+const props = defineProps<{ type: string; config?: Record<string, any> }>()
 
 const meta = computed(() => getWidget(props.type))
 </script>

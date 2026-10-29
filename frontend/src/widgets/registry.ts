@@ -1,5 +1,13 @@
 import { defineAsyncComponent, type Component } from 'vue'
 
+export interface ConfigField {
+  key: string
+  label: string
+  type: 'text' | 'number' | 'boolean' | 'select'
+  default?: any
+  options?: { value: string; label: string }[]
+}
+
 export interface WidgetMeta {
   type: string
   name: string
@@ -8,6 +16,8 @@ export interface WidgetMeta {
   defaultW: number
   defaultH: number
   component: Component
+  /** 组件可配置项（声明后，工作台会出现"配置"按钮） */
+  configSchema?: ConfigField[]
 }
 
 // 组件注册表：Widget SDK 的核心，组件可插拔、可扩展
@@ -56,6 +66,9 @@ export function registerBuiltinWidgets() {
     icon: 'links',
     defaultW: 4,
     defaultH: 3,
+    configSchema: [
+      { key: 'openInNewTab', label: '新标签页打开', type: 'boolean', default: true }
+    ],
     component: defineAsyncComponent(() => import('./LinksWidget.vue'))
   })
 }

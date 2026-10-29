@@ -39,8 +39,18 @@
           :w="item.w"
           :h="item.h"
         >
-          <WidgetRenderer :type="item.widgetType" />
-          <button class="remove" title="移除组件" @click="removeWidget(idx)">×</button>
+          <WidgetRenderer :type="item.widgetType" :config="item.config" />
+          <div class="widget-tools">
+            <button
+              v-if="hasConfig(item.widgetType)"
+              class="tool config"
+              title="配置组件"
+              @click="openConfig(idx)"
+            >
+              ⚙
+            </button>
+            <button class="tool remove" title="移除组件" @click="removeWidget(idx)">×</button>
+          </div>
         </GridItem>
       </GridLayout>
 
@@ -48,13 +58,26 @@
         点击右上角「添加组件」，开始搭建你的工作台
       </div>
     </main>
+
+    <transition name="fade">
+      <div v-if="configIdx !== null" class="config-mask" @click.self="closeConfig">
+        <WidgetConfigPanel
+          :meta="configMeta"
+          :config="configValue"
+          @cancel="closeConfig"
+          @save="saveConfig"
+        />
+      </div>
+    </transition>
   </div>
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { GridLayout, GridItem } from 'grid-layout-plus'
 import WidgetRenderer from '@/widgets/WidgetRenderer.vue'
+import WidgetConfigPanel from '@/widgets/WidgetConfigPanel.vue'
+import { getWidget } from '@/widgets/registry'
 import { useLayoutStore } from '@/stores/layout'
 import { fetchWidgets } from '@/api/widgets'
 import type { WidgetDefinition } from '@/types'
@@ -62,7 +85,16 @@ import type { WidgetDefinition } from '@/types'
 const store = useLayoutStore()
 const defs = ref<WidgetDefinition[]>([])
 const panelOpen = ref(false)
+const configIdx = ref<number | null>(null)
 let saveTimer: number | undefined
+
+const configMeta = computed(() =>
+  configIdx.value !== null ? getWidget(store.items[configIdx.value]?.widgetType) : undefined
+)
+
+const configValue = computed(() =>
+  configIdx.value !== null ? store.items[configIdx.value]?.config : undefined
+)
 
 onMounted(async () => {
   store.load()
@@ -74,7 +106,13 @@ onMounted(async () => {
 })
 
 function addWidget(def: WidgetDefinition) {
-  store.addItem(def)
+  const meta = getWidget(def.type)
+  const config = meta?.configSchema
+    ? Object.fromEntries(
+        meta.configSchema.filter((f) => f.default !== undefined).map((f) => [f.key, f.default])
+      )
+    : undefined
+  store.addItem(def, config)
   scheduleSave()
 }
 
@@ -83,16 +121,28 @@ function removeWidget(idx: number) {
   scheduleSave()
 }
 
+function hasConfig(type: string) {
+  return !!getWidget(type)?.configSchema?.length
+}
+
+function openConfig(idx: number) {
+  configIdx.value = idx
+}
+
+function closeConfig() {
+  configIdx.value = null
+}
+
+function saveConfig(newConfig: Record<string, any>) {
+  if (configIdx.value !== null) {
+    store.items[configIdx.value].config = newConfig
+  }
+  closeConfig()
+  scheduleSave()
+}
+
 function scheduleSave() {
   if (saveTimer) window.clearTimeout(saveTimer)
   saveTimer = window.setTimeout(() => store.save(), 800)
 }
 </script>
-
-<style scoped>
-.hint {
-  text-align: center;
-  color: var(--text-2);
-  padding: 40px;
-}
-</style>

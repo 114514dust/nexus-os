@@ -30,16 +30,18 @@ export const useLayoutStore = defineStore('layout', {
         this.saving = false
       }
     },
-    addItem(def: WidgetDefinition) {
+    addItem(def: WidgetDefinition, config?: Record<string, any>) {
       const maxY = this.items.reduce((m, it) => Math.max(m, it.y + it.h), 0)
-      this.items.push({
+      const item: GridItem = {
         i: `${def.type}-${Date.now()}`,
         widgetType: def.type,
         x: 0,
         y: maxY,
         w: def.defaultW,
         h: def.defaultH
-      })
+      }
+      if (config) item.config = config
+      this.items.push(item)
     },
     removeItem(index: number) {
       this.items.splice(index, 1)

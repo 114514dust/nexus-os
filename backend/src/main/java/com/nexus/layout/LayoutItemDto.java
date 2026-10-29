@@ -4,6 +4,7 @@ import lombok.Data;
 
 import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.PositiveOrZero;
+import java.util.Map;
 
 /**
  * 布局中的一个组件项。
@@ -25,4 +26,7 @@ public class LayoutItemDto {
 
     @PositiveOrZero
     private int h;
+
+    /** 组件实例配置，随布局项持久化（可配置组件的自定义项）。 */
+    private Map<String, Object> config;
 }
