@@ -1,6 +1,6 @@
 <template>
   <div class="workbench">
-    <aside class="sidebar">
+    <aside class="sidebar" :class="{ collapsed: sidebarCollapsed }">
       <div class="sidebar-brand">中枢 Nexus</div>
       <nav class="sidebar-pages">
         <div
@@ -35,13 +35,24 @@
         @keyup.enter="confirmCreate"
         @blur="cancelCreate"
       />
+      <div class="sidebar-footer">
+        <button class="sidebar-settings" @click="settingsOpen = true">⚙ 设置</button>
+      </div>
     </aside>
 
     <div class="main">
       <header class="topbar">
-        <div class="brand">{{ currentPageName }}</div>
+        <div class="topbar-left">
+          <button
+            class="sidebar-toggle"
+            :title="sidebarCollapsed ? '展开侧边栏' : '收起侧边栏'"
+            @click="toggleSidebar"
+          >
+            ☰
+          </button>
+          <div class="brand">{{ currentPageName }}</div>
+        </div>
         <div class="actions">
-          <button class="btn" @click="settingsOpen = true">设置</button>
           <button class="btn" :class="{ active: editMode }" @click="toggleEdit">
             {{ editMode ? '退出 DIY' : 'DIY 模式' }}
           </button>
@@ -69,6 +80,9 @@
           :is-resizable="editMode"
           :vertical-compact="true"
           :margin="[12, 12]"
+          :responsive="true"
+          :breakpoints="breakpoints"
+          :cols="cols"
           @layout-updated="scheduleSave"
         >
           <GridItem
@@ -135,11 +149,16 @@ const panelOpen = ref(false)
 const configIdx = ref<number | null>(null)
 const editMode = ref(false)
 const settingsOpen = ref(false)
+const sidebarCollapsed = ref(false)
 const creating = ref(false)
 const createValue = ref('')
 const renamingId = ref<number | null>(null)
 const renameValue = ref('')
 let saveTimer: number | undefined
+
+// 响应式断点：窄屏自动减少网格列数，避免组件被挤压
+const breakpoints = { lg: 1200, md: 996, sm: 768, xs: 480, xxs: 0 }
+const cols = { lg: 12, md: 10, sm: 6, xs: 4, xxs: 2 }
 
 const currentPageName = computed(
   () => pagesStore.pages.find((p) => p.id === pagesStore.currentId)?.name ?? '中枢 Nexus'
@@ -164,6 +183,10 @@ onMounted(async () => {
     /* 目录加载失败不阻塞工作台 */
   }
 })
+
+function toggleSidebar() {
+  sidebarCollapsed.value = !sidebarCollapsed.value
+}
 
 function toggleEdit() {
   editMode.value = !editMode.value
@@ -273,7 +296,8 @@ function scheduleSave() {
 }
 
 function persistLayout() {
-  if (pagesStore.currentId !== null) {
+  // 仅在桌面基准断点(lg)下持久化，避免响应式缩放产生的临时布局覆盖后端基准布局
+  if (pagesStore.currentId !== null && window.innerWidth >= 1200) {
     store.save(pagesStore.currentId)
   }
 }

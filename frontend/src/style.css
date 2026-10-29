@@ -70,11 +70,24 @@ button {
 .sidebar {
   width: 200px;
   flex-shrink: 0;
+  position: sticky;
+  top: 0;
+  height: 100vh;
   background: var(--surface);
   border-right: 1px solid var(--border);
   display: flex;
   flex-direction: column;
   padding: 12px 8px;
+  overflow: hidden;
+  white-space: nowrap;
+  transition: width 0.25s ease, padding 0.25s ease;
+}
+
+.sidebar.collapsed {
+  width: 0;
+  padding-left: 0;
+  padding-right: 0;
+  border-right: none;
 }
 
 .sidebar-brand {
@@ -189,6 +202,33 @@ button {
   outline: none;
 }
 
+/* 侧边栏底部：设置入口固定在最下 */
+.sidebar-footer {
+  margin-top: auto;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+
+.sidebar-settings {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  font-size: 13px;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+}
+
+.sidebar-settings:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
 /* 主区域 */
 .main {
   flex: 1;
@@ -205,6 +245,34 @@ button {
   padding: 0 20px;
   border-bottom: 1px solid var(--border);
   background: var(--surface);
+}
+
+.topbar-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.sidebar-toggle {
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text);
+  border-radius: 8px;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+}
+
+.sidebar-toggle:hover {
+  border-color: var(--accent);
+  color: var(--accent);
 }
 
 .brand {
