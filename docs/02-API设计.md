@@ -175,12 +175,28 @@
 | POST | `/api/mail/messages/{id}/ignore` | 不再显示这封邮件 |
 | DELETE | `/api/mail/messages/{id}` | 删除邮件记录（不连带删除已生成的待办） |
 | GET | `/api/mail/stats` | 概览（重要 / 可关注 / 已转待办 / 已收录 / 上次收取 / 失败原因） |
+| GET | `/api/mail/digest?date=` | 某天的摘要（默认昨天），含 `text` 纯文本版，只读不推送 |
+| POST | `/api/mail/digest/push?date=` | 立即推送一次摘要，返回 `{pushed, message}` |
+| GET | `/api/mail/attachments/{id}/download` | 下载附件；首次自动回 IMAP 取一次并存本地，`inline=true` 走内联预览 |
+| GET | `/api/mail/rules` | 发件人规则列表（含命中次数） |
+| POST | `/api/mail/rules` | 新增规则 `{pattern, action, note}`，`action` = `important/watch/ignore` |
+| PUT | `/api/mail/rules/{id}` | 修改规则 |
+| DELETE | `/api/mail/rules/{id}` | 删除规则 |
 
 `scope`：`important`（默认，高 + 中置信度且未忽略）/ `todo`（已转待办）/ `all`。
 `importantLevel`：`high`（≥70 分，自动建待办）/ `medium`（45–69）/ `low`（不进重要列表）。
 `verdictBy`：`rule`（纯规则）/ `llm`（大模型参与过灰区判定或待办提炼）。
 
 `sync` / `probe` 用 POST 而非 GET：会连外部 IMAP，属于有副作用的动作，不应被缓存或预取。前端对这两个请求单独把超时放宽到 90 秒。
+
+**附件下载**返回二进制流 + `Content-Disposition`（`attachment` 或 `inline`，文件名按 UTF-8 编码）。
+首次访问会连一次 IMAP 把字节取回来落到 `data/mail-attachments/`，之后直接读盘；单文件上限 25 MB（`nexus.mail.attachment-max-mb`）。
+邮件详情里的 `attachments[]` 只给元信息（文件名 / 类型 / 大小 / 是否已存本地），不暴露本地路径。
+
+**发件人规则**的 `pattern` 同时匹配发件地址与发件人显示名（学校通知常以中文名发信），
+多个规则同时命中时**越具体越优先**（pattern 更长者胜），长度相同时 `ignore` 优先。
+规则与「永不重要」名单的区别：规则能表达「一律重要」和「只进可关注、别自动建待办」，并且带命中计数。
+重复添加同一 pattern 返回 `409`，不会静默覆盖。
 
 ---
 
