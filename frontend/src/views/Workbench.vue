@@ -175,8 +175,14 @@ const configValue = computed(() =>
 
 onMounted(async () => {
   await pagesStore.load()
+  // 支持 /?page=97 直接打开某一页：可以把常驻页面设成浏览器书签或启动页
+  const wanted = Number(new URLSearchParams(location.search).get('page'))
+  if (Number.isFinite(wanted) && pagesStore.pages.some((p) => p.id === wanted)) {
+    pagesStore.select(wanted)
+  }
   if (pagesStore.currentId !== null) {
     await store.load(pagesStore.currentId)
+    syncUrl(pagesStore.currentId)
   }
   try {
     defs.value = await fetchWidgets()
@@ -184,6 +190,14 @@ onMounted(async () => {
     /* 目录加载失败不阻塞工作台 */
   }
 })
+
+/** 把当前页写回地址栏，刷新或直接分享链接都能落到同一页 */
+function syncUrl(id: number) {
+  const url = new URL(location.href)
+  if (url.searchParams.get('page') === String(id)) return
+  url.searchParams.set('page', String(id))
+  history.replaceState(null, '', url)
+}
 
 function toggleSidebar() {
   sidebarCollapsed.value = !sidebarCollapsed.value
@@ -204,6 +218,7 @@ async function switchPage(id: number) {
   editMode.value = false
   panelOpen.value = false
   closeConfig()
+  syncUrl(id)
   await store.load(id)
   // 换页后回到顶部：上一个页面的滚动位置对新页面没有意义
   resetScroll()
@@ -226,6 +241,7 @@ async function confirmCreate() {
   const page = await pagesStore.create(name)
   editMode.value = false
   closeConfig()
+  syncUrl(page.id)
   await store.load(page.id)
   resetScroll()
 }
@@ -257,6 +273,7 @@ async function removePage(page: Page) {
   editMode.value = false
   closeConfig()
   if (pagesStore.currentId !== null) {
+    syncUrl(pagesStore.currentId)
     await store.load(pagesStore.currentId)
   } else {
     store.items = []
