@@ -39,6 +39,10 @@ public class Subscription {
     @Column(name = "last_fetched_at")
     private LocalDateTime lastFetchedAt;
 
+    /** 最近一次抓取的错误信息；null 表示上次抓取正常。失败必须可见，不能只写日志 */
+    @Column(name = "last_error", length = 500)
+    private String lastError;
+
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 }

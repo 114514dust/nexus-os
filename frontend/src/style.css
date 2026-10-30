@@ -1509,6 +1509,18 @@ button {
   color: #d0a54a;
 }
 
+/* 订阅最近一次抓取失败的原因：不显眼但不能看不见 */
+.sub-error {
+  margin-top: 6px;
+  font-size: 11px;
+  line-height: 1.5;
+  color: #e5756f;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
 .sub-ops {
   display: flex;
   gap: 2px;

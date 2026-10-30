@@ -60,6 +60,9 @@
             <button class="del" @click="remove(s)">删除</button>
           </div>
         </div>
+        <div v-if="s.lastError" class="sub-error" :title="s.lastError">
+          ⚠ 抓取失败：{{ s.lastError }}
+        </div>
       </div>
 
       <div v-if="store.items.length === 0 && !store.loading" class="sub-empty">

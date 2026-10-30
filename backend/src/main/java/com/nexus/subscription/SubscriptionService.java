@@ -173,15 +173,25 @@ public class SubscriptionService {
 
     // ---- 抓取 ----
 
-    /** 手动抓取单个订阅源 */
-    @Transactional
+    /**
+     * 手动抓取单个订阅源。
+     * 注意：这里故意不加 @Transactional —— 失败时要把 lastError 独立提交，
+     * 包在事务里的话「记录错误」会随业务异常一起回滚，卡片上就看不到失败原因了。
+     */
     public int fetchOne(Long id) {
-        int added = doFetch(getOrThrow(id));
-        // 只在外层通知一次：doFetch 可能被循环调用，逐条推送会造成重复刷新
-        if (added > 0) {
-            notifier.notify(ChangeDomain.MESSAGE);
+        Subscription sub = getOrThrow(id);
+        try {
+            int added = doFetch(sub);
+            // 只在外层通知一次：doFetch 可能被循环调用，逐条推送会造成重复刷新
+            if (added > 0) {
+                notifier.notify(ChangeDomain.MESSAGE);
+            }
+            return added;
+        } catch (RuntimeException e) {
+            // 手动抓取失败时前端有 toast，但也要写到订阅卡片上，不然翻页后就「看不见失败」了
+            recordError(sub, e);
+            throw e;
         }
-        return added;
     }
 
     /** 抓取所有启用订阅源（定时任务调用），返回有新增或失败的源明细 */
@@ -199,6 +209,7 @@ public class SubscriptionService {
             } catch (Exception e) {
                 // 单个源失败不拖垮整批：记下来，页面上仍能正常抓其他源
                 log.warn("订阅「{}」抓取失败：{}", sub.getName(), e.getMessage());
+                recordError(sub, e);
                 results.add(new FetchResult(sub.getName(), 0, e.getMessage()));
             }
         }
@@ -206,6 +217,16 @@ public class SubscriptionService {
             notifier.notify(ChangeDomain.MESSAGE);
         }
         return results;
+    }
+
+    /** 把抓取失败写进订阅本身，前端卡片据此显示红字提示 */
+    private void recordError(Subscription sub, Exception e) {
+        String msg = e.getMessage();
+        if (msg == null || msg.isBlank()) {
+            msg = e.getClass().getSimpleName();
+        }
+        sub.setLastError(msg.length() > 500 ? msg.substring(0, 500) : msg);
+        subscriptionRepository.save(sub);
     }
 
     /** 单个订阅源的抓取结果，用于汇总推送文案 */
@@ -255,6 +276,8 @@ public class SubscriptionService {
             added++;
         }
         sub.setLastFetchedAt(LocalDateTime.now());
+        // 抓成功就把旧错误清掉，卡片上的红字随之消失
+        sub.setLastError(null);
         subscriptionRepository.save(sub);
         if (added > 0) {
             log.info("订阅「{}」新增 {} 条消息", sub.getName(), added);

@@ -11,6 +11,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
+import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestTemplate;
 
 import java.net.URLEncoder;
@@ -37,6 +38,7 @@ import java.util.TreeMap;
 public class BilibiliFetcher implements FeedFetcher {
 
     private static final String NAV_URL = "https://api.bilibili.com/x/web-interface/nav";
+    private static final String HOME_URL = "https://www.bilibili.com/";
     private static final String FEED_SPACE_URL = "https://api.bilibili.com/x/polymer/web-dynamic/v1/feed/space";
     private static final String UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36";
 
@@ -53,6 +55,8 @@ public class BilibiliFetcher implements FeedFetcher {
 
     private volatile String cachedImgKey;
     private volatile String cachedSubKey;
+    private volatile String cachedCookie;
+    private volatile long cookieCachedAt;
     private volatile long cachedAt;
 
     public BilibiliFetcher(RestTemplateBuilder builder, ObjectMapper objectMapper) {
@@ -96,8 +100,28 @@ public class BilibiliFetcher implements FeedFetcher {
             HttpHeaders headers = new HttpHeaders();
             headers.set(HttpHeaders.USER_AGENT, UA);
             headers.set(HttpHeaders.REFERER, "https://space.bilibili.com/");
+            // B 站对无 Cookie 请求直接 412（request was banned），必须先拿一份访客 Cookie
+            String ck = cookie(false);
+            if (ck != null) {
+                headers.set(HttpHeaders.COOKIE, ck);
+            }
             HttpEntity<Void> entity = new HttpEntity<>(headers);
-            ResponseEntity<String> resp = restTemplate.exchange(url.toString(), HttpMethod.GET, entity, String.class);
+            ResponseEntity<String> resp;
+            try {
+                resp = restTemplate.exchange(url.toString(), HttpMethod.GET, entity, String.class);
+            } catch (HttpStatusCodeException e) {
+                // Cookie 过期或被标记时仍会 412：强制换一份新 Cookie 再试一次
+                if (e.getStatusCode().value() != 412) {
+                    throw e;
+                }
+                log.info("B站返回412，刷新访客Cookie后重试");
+                String fresh = cookie(true);
+                if (fresh == null) {
+                    throw e;
+                }
+                headers.set(HttpHeaders.COOKIE, fresh);
+                resp = restTemplate.exchange(url.toString(), HttpMethod.GET, entity, String.class);
+            }
             JsonNode node = objectMapper.readTree(resp.getBody());
             int code = node.path("code").asInt(-1);
             if (code != 0) {
@@ -107,10 +131,56 @@ public class BilibiliFetcher implements FeedFetcher {
             return parseItems(node.path("data").path("items"));
         } catch (ApiException e) {
             throw e;
+        } catch (HttpStatusCodeException e) {
+            // 刷新 Cookie 重试后仍是 HTTP 层 412/403：服务端指纹被识别，如实告诉用户
+            log.warn("B站动态抓取被HTTP层拦截: uid={}, status={}", hostMid, e.getStatusCode().value());
+            throw new ApiException(ErrorCode.BAD_REQUEST, describeBiliError(-412));
         } catch (Exception e) {
             log.error("B站动态抓取异常: uid={}", hostMid, e);
             throw new ApiException(ErrorCode.BAD_REQUEST, "B 站动态抓取失败（网络异常，稍后再试）");
         }
+    }
+
+    /**
+     * 访客 Cookie：访问 B 站首页收集 Set-Cookie（buvid3/buvid4 等）。
+     * 没有它，动态接口基本必吃 412 风控。缓存半小时，避免每次抓取都多打一趟首页。
+     *
+     * @param forceRefresh true 时丢弃缓存重新获取（412 重试用）
+     */
+    private String cookie(boolean forceRefresh) {
+        if (!forceRefresh && cachedCookie != null && System.currentTimeMillis() - cookieCachedAt < 1_800_000) {
+            return cachedCookie;
+        }
+        try {
+            HttpHeaders h = new HttpHeaders();
+            h.set(HttpHeaders.USER_AGENT, UA);
+            ResponseEntity<String> resp = restTemplate.exchange(
+                    HOME_URL, HttpMethod.GET, new HttpEntity<>(h), String.class);
+            List<String> setCookies = resp.getHeaders().get(HttpHeaders.SET_COOKIE);
+            if (setCookies != null && !setCookies.isEmpty()) {
+                // 只留 name=value，Path/Expires 等属性不带
+                Map<String, String> jar = new TreeMap<>();
+                for (String sc : setCookies) {
+                    String pair = sc.split(";", 2)[0];
+                    int eq = pair.indexOf('=');
+                    if (eq > 0) {
+                        jar.put(pair.substring(0, eq).trim(), pair.substring(eq + 1).trim());
+                    }
+                }
+                StringBuilder sb = new StringBuilder();
+                for (Map.Entry<String, String> e : jar.entrySet()) {
+                    if (sb.length() > 0) {
+                        sb.append("; ");
+                    }
+                    sb.append(e.getKey()).append('=').append(e.getValue());
+                }
+                cachedCookie = sb.toString();
+                cookieCachedAt = System.currentTimeMillis();
+            }
+        } catch (Exception e) {
+            log.warn("获取B站访客Cookie失败: {}", e.getMessage());
+        }
+        return cachedCookie;
     }
 
     /** 把 B 站的错误码翻成用户能懂的话 */
@@ -119,7 +189,7 @@ public class BilibiliFetcher implements FeedFetcher {
             case -352:
             case -412:
             case -403:
-                return "B 站风控拦截了本次请求，过几分钟再抓一次";
+                return "B 站风控拦截了服务器请求（动态接口必须真实浏览器环境）。可稍后重试；若一直失败建议先「暂停」这个订阅";
             case -404:
                 return "这个 UP 主不存在，检查一下 uid 或空间链接";
             case -101:
@@ -157,8 +227,15 @@ public class BilibiliFetcher implements FeedFetcher {
             return new String[]{cachedImgKey, cachedSubKey};
         }
         try {
-            String nav = restTemplate.getForObject(NAV_URL, String.class);
-            JsonNode wbi = objectMapper.readTree(nav).path("data").path("wbi_img");
+            HttpHeaders h = new HttpHeaders();
+            h.set(HttpHeaders.USER_AGENT, UA);
+            String ck = cookie(false);
+            if (ck != null) {
+                h.set(HttpHeaders.COOKIE, ck);
+            }
+            ResponseEntity<String> navResp = restTemplate.exchange(
+                    NAV_URL, HttpMethod.GET, new HttpEntity<>(h), String.class);
+            JsonNode wbi = objectMapper.readTree(navResp.getBody()).path("data").path("wbi_img");
             cachedImgKey = extractKey(wbi.path("img_url").asText());
             cachedSubKey = extractKey(wbi.path("sub_url").asText());
             cachedAt = System.currentTimeMillis();

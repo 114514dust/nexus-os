@@ -192,9 +192,13 @@ function dueLabel(t: Todo) {
 }
 
 .todo-new-due {
-  max-width: 130px;
+  /* 130px 时中文环境的「2026/10/30」会被压成 10/27/周..，150px 起才放得下 */
+  width: 150px;
   flex: none !important;
   font-size: 12px;
+  padding: 6px 8px;
+  /* 深色主题下原生日历图标默认是黑色的，声明配色方案让它跟着主题走 */
+  color-scheme: dark;
 }
 
 .todo-text {

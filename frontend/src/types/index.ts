@@ -115,6 +115,7 @@ export interface Subscription {
   url: string
   enabled: boolean
   lastFetchedAt: string | null
+  lastError?: string | null
   createdAt: string
 }
 
