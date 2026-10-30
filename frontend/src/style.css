@@ -500,6 +500,87 @@ button {
 }
 
 /* 快捷链接 */
+.links-widget {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+/* 内嵌浏览视图 */
+.links-embed {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  gap: 8px;
+}
+
+.links-embed-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.links-embed-bar .btn {
+  flex-shrink: 0;
+}
+
+.links-embed-bar .btn.back {
+  padding: 4px 10px;
+}
+
+.links-embed-bar .btn.external {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.links-embed-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+  color: var(--text);
+}
+
+.links-embed-frame {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.links-embed-hint {
+  flex-shrink: 0;
+  font-size: 11px;
+  color: var(--text-2);
+  line-height: 1.5;
+}
+
+.link-open {
+  flex: 1;
+  text-align: left;
+  background: transparent;
+  border: none;
+  color: var(--accent);
+  padding: 4px 8px;
+  border-radius: 6px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+  font-size: inherit;
+}
+
+.link-open:hover {
+  background: var(--surface-2);
+}
+
 .link-form {
   display: flex;
   gap: 6px;

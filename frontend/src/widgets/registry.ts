@@ -78,7 +78,7 @@ export function registerBuiltinWidgets() {
     defaultH: 3,
     configSchema: [
       { key: 'title', label: '标题', type: 'text', default: '快捷链接' },
-      { key: 'openInNewTab', label: '新标签页打开', type: 'boolean', default: true }
+      { key: 'openInNewTab', label: '新窗口打开（关闭则在组件内显示）', type: 'boolean', default: true }
     ],
     component: defineAsyncComponent(() => import('./LinksWidget.vue'))
   })
