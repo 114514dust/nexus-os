@@ -4,10 +4,9 @@ import lombok.Data;
 
 import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.Size;
-import java.util.List;
 
 /**
- * AI 对话请求：当前消息 + 最近对话历史（多轮上下文）。
+ * AI 对话请求：当前消息。历史由后端从持久化的对话记忆读取，前端无需再传。
  */
 @Data
 public class ChatRequest {
@@ -15,6 +14,4 @@ public class ChatRequest {
     @NotBlank
     @Size(max = 2000)
     private String message;
-
-    private List<ChatMessageDto> history;
 }

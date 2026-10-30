@@ -34,7 +34,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { useChatStore } from '@/stores/chats'
 import { renderMarkdown } from '@/utils/markdown'
 
@@ -43,6 +43,9 @@ const draft = ref('')
 const listEl = ref<HTMLElement | null>(null)
 
 const canSend = computed(() => draft.value.trim() !== '')
+
+// 挂载时从后端加载持久化的对话历史
+onMounted(() => store.load())
 
 function render(md: string) {
   return renderMarkdown(md)

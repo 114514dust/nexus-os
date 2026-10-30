@@ -1,25 +1,31 @@
 import { defineStore } from 'pinia'
-import { sendChat } from '@/api/chats'
+import { sendChat, fetchChatHistory, clearChatHistory } from '@/api/chats'
 import { friendlyError } from '@/utils/toast'
 import type { ChatMessage } from '@/types'
-
-const MAX_HISTORY = 12 // 每次最多携带的最近对话条数（多轮上下文）
 
 export const useChatStore = defineStore('chat', {
   state: () => ({
     messages: [] as ChatMessage[],
-    sending: false
+    sending: false,
+    loading: false
   }),
   actions: {
+    /** 从后端加载持久化的对话历史 */
+    async load() {
+      this.loading = true
+      try {
+        this.messages = await fetchChatHistory()
+      } finally {
+        this.loading = false
+      }
+    },
     async send(text: string) {
       const content = text.trim()
       if (!content || this.sending) return
       this.messages.push({ role: 'user', content })
       this.sending = true
       try {
-        // 取当前消息之前的最近 N 条作为上下文（不含刚发的那条）
-        const history = this.messages.slice(0, -1).slice(-MAX_HISTORY)
-        const res = await sendChat(content, history)
+        const res = await sendChat(content)
         this.messages.push({ role: 'assistant', content: res.reply })
       } catch (err) {
         this.messages.push({
@@ -30,7 +36,12 @@ export const useChatStore = defineStore('chat', {
         this.sending = false
       }
     },
-    clear() {
+    async clear() {
+      try {
+        await clearChatHistory()
+      } catch {
+        /* 清空失败不阻断本地清空 */
+      }
       this.messages = []
     }
   }
