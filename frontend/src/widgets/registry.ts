@@ -149,4 +149,14 @@ export function registerBuiltinWidgets() {
     configSchema: [{ key: 'title', label: '标题', type: 'text', default: '求职追踪' }],
     component: defineAsyncComponent(() => import('./JobWidget.vue'))
   })
+  registerWidget({
+    type: 'posting',
+    name: '校招岗位',
+    description: '聚合秋招/春招在招岗位，支持关键词匹配、一键加入求职追踪',
+    icon: 'posting',
+    defaultW: 6,
+    defaultH: 10,
+    configSchema: [{ key: 'title', label: '标题', type: 'text', default: '校招岗位' }],
+    component: defineAsyncComponent(() => import('./JobBoardWidget.vue'))
+  })
 }

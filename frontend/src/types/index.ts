@@ -156,6 +156,74 @@ export interface LlmSettings {
   model: string
 }
 
+/** 校招岗位（外部渠道抓来的「在招职位」） */
+export interface JobPosting {
+  id: number
+  /** qiuzhaowang | manual */
+  source: string
+  company: string
+  /** 公告标题 */
+  title: string
+  /** 岗位方向明细 */
+  positions: string | null
+  city: string | null
+  /** 届别，如 2027届 */
+  cohort: string | null
+  /** 批次，如 27秋招 */
+  batch: string | null
+  /** 企业性质：国企 / 民企 / 事业单位 */
+  companyType: string | null
+  category: JobCategory
+  categoryLabel: string
+  detailUrl: string | null
+  announceUrl: string | null
+  deadlineText: string | null
+  /** yyyy-MM-dd */
+  publishedAt: string | null
+  starred: boolean
+  ignored: boolean
+  /** 已加入求职追踪则为对应投递 id */
+  jobId: number | null
+  /** 近 3 天入库且未处理 */
+  fresh: boolean
+  /** 命中关注关键词 */
+  matched: boolean
+  matchKeywords: string[]
+  fetchedAt: string
+}
+
+export interface PostingStats {
+  total: number
+  pending: number
+  applied: number
+  fresh: number
+  starred: number
+  sourceLabel: string
+  lastFetchedAt: string | null
+}
+
+export interface PostingPrefs {
+  focusKeywords: string[]
+  autoFetch: boolean
+  pages: number
+}
+
+export interface PostingRefreshResult {
+  ok: boolean
+  added: number
+  updated: number
+  fetched: number
+  message: string
+  at: string
+}
+
+export interface PostingApplyResult {
+  posting: JobPosting
+  job: JobApplication
+  /** false 表示之前已加入过，本次是幂等返回 */
+  created: boolean
+}
+
 /** 消息推送配置（群机器人 webhook） */
 export interface NotifySettings {
   enabled: boolean
@@ -170,6 +238,8 @@ export interface NotifySettings {
   onInterview: boolean
   /** 待办到期提醒 */
   onTodo: boolean
+  /** 校招岗位新增推送 */
+  onPosting: boolean
 }
 
 export interface Page {

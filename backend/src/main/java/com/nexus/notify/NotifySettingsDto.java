@@ -33,4 +33,7 @@ public class NotifySettingsDto {
 
     /** 待办到期提醒（今天到期、已逾期） */
     private boolean onTodo;
+
+    /** 校招岗位抓到新岗位时推送 */
+    private boolean onPosting;
 }

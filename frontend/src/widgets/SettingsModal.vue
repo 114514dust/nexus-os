@@ -73,6 +73,10 @@
             <input v-model="notifyForm.onTodo" type="checkbox" />
             <span>待办到期提醒（每天 8:30 提醒今天到期与已逾期的待办）</span>
           </label>
+          <label class="setting-check">
+            <input v-model="notifyForm.onPosting" type="checkbox" />
+            <span>校招岗位新增提醒（每天 7:30 抓取后推送，命中关注关键词的排前面）</span>
+          </label>
         </div>
         <p class="setting-hint">
           只做出站推送（群机器人 webhook），无需公网 IP。配好后先点「发送测试」确认能收到，再打开总开关。
@@ -119,7 +123,8 @@ const notifyForm = reactive({
   onFeed: true,
   onDigest: true,
   onInterview: true,
-  onTodo: true
+  onTodo: true,
+  onPosting: true
 })
 
 onMounted(async () => {

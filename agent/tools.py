@@ -356,6 +356,121 @@ class JobStatsTool(Tool):
         )
 
 
+# ---- 校招岗位 ----
+def _posting_line(it: dict) -> str:
+    """一行描述一个岗位：公司 · 岗位方向 [性质/批次]（城市 / 截止）"""
+    head = f"#{it.get('id')} {it.get('company', '')}"
+    pos = str(it.get("positions") or "").strip()
+    if pos:
+        head += " · " + (pos if len(pos) <= 60 else pos[:60] + "…")
+    tags = [t for t in (it.get("companyType"), it.get("batch")) if t]
+    line = head + (f" [{'/'.join(tags)}]" if tags else "")
+    extra = []
+    if it.get("city"):
+        city = str(it["city"])
+        extra.append(city if len(city) <= 20 else city[:20] + "…")
+    if it.get("deadlineText"):
+        extra.append("截止" + str(it["deadlineText"]))
+    if extra:
+        line += f"（{' / '.join(extra)}）"
+    if it.get("matched"):
+        line += " ★命中:" + "/".join(it.get("matchKeywords") or [])
+    return line
+
+
+class PostingListTool(Tool):
+    name = "posting_list"
+    description = "查看最近在招的校招岗位（来自秋招网抓取 + 手动添加，可按关键词/批次/状态筛选）"
+    params = (
+        '{"keyword": "公司或岗位关键词", "category": "autumn|spring|intern|social|soe|other", '
+        '"scope": "pending|applied|all", "onlyMatched": true}'
+    )
+
+    def call(self, params, client):
+        query = {}
+        kw = str(params.get("keyword", "") or "").strip()
+        if kw:
+            query["keyword"] = kw
+        cat = str(params.get("category", "") or "").strip()
+        if cat in _JOB_CAT_LABEL:
+            query["category"] = cat
+        scope = str(params.get("scope", "") or "").strip()
+        query["scope"] = scope if scope in ("pending", "applied", "all") else "pending"
+        if params.get("onlyMatched") in (True, "true", 1, "1"):
+            query["onlyMatched"] = True
+
+        items = client.get("/api/postings", **query)
+        stats = client.get("/api/postings/stats")
+        lines = [_posting_line(it) for it in items[:15]]
+        if not lines:
+            hint = "（没有符合条件的岗位。可以让我抓一次最新岗位，或者你自己在组件里点刷新）"
+            return (
+                f"校招岗位：待处理 {stats.get('pending', 0)} 个，已加入追踪 {stats.get('applied', 0)} 个。\n"
+                + hint
+            )
+        out = "\n".join(lines)
+        tail = "" if len(items) <= 15 else f"\n（共 {len(items)} 个，仅列前 15 个）"
+        return (
+            f"校招岗位（待处理 {stats.get('pending', 0)} / 已加入 {stats.get('applied', 0)}）：\n"
+            + out + tail
+            + "\n\n想投哪个直接说「把 XX 加入求职追踪」即可。"
+        )
+
+
+class PostingApplyTool(Tool):
+    name = "posting_apply"
+    description = "把某个校招岗位加入求职追踪（生成一条投递记录），可用岗位 id 或公司名定位"
+    params = '{"id": 1, "company": "公司名", "jobTitle": "投的岗位（可选）"}'
+
+    def call(self, params, client):
+        posting_id = params.get("id")
+        target = None
+        if posting_id is None:
+            company = str(params.get("company", "") or "").strip()
+            if not company:
+                return "错误：需要提供 id 或 company 来定位岗位"
+            items = client.get("/api/postings", scope="all")
+            matched = [
+                it for it in items
+                if company in str(it.get("company", ""))
+                or company in str(it.get("positions", ""))
+            ]
+            if not matched:
+                return f"没有找到公司或岗位包含「{company}」的校招岗位，可能还没抓取到"
+            if len(matched) > 1:
+                lines = [_posting_line(it) for it in matched]
+                return "匹配到多个岗位，请用 id 指定：\n" + "\n".join(lines)
+            target = matched[0]
+            posting_id = target["id"]
+            if target.get("jobId"):
+                return f"「{target.get('company')}」已经在求职追踪里了（投递 #{target['jobId']}），不用重复添加"
+
+        body = {}
+        title = str(params.get("jobTitle", "") or "").strip()
+        if title:
+            body["jobTitle"] = title
+        result = client.post(f"/api/postings/{int(posting_id)}/apply", body)
+        job = result.get("job") or {}
+        if not result.get("created"):
+            return f"这条岗位之前已经加入过：{_job_line(job)}"
+        return f"已加入求职追踪：{_job_line(job)}"
+
+
+class PostingRefreshTool(Tool):
+    name = "posting_refresh"
+    description = "立即从秋招网抓取一次最新的校招岗位（约 30 秒返回）"
+    params = "{}"
+
+    def call(self, params, client):
+        r = client.post("/api/postings/refresh")
+        if not r.get("ok"):
+            return f"抓取失败：{r.get('message', '源站无响应')}"
+        return (
+            f"抓取完成：拉取 {r.get('fetched', 0)} 条，新增 {r.get('added', 0)} 个，"
+            f"更新 {r.get('updated', 0)} 个。"
+        )
+
+
 # ---- 订阅 ----
 class SubscriptionListTool(Tool):
     name = "subscription_list"
@@ -406,7 +521,7 @@ class SummaryGenerateTool(Tool):
 # ---- 综合查询 ----
 class QueryAllTool(Tool):
     name = "query_all"
-    description = "综合查看工作台全貌（待办 + 便签 + 链接 + 订阅 + 求职进度）"
+    description = "综合查看工作台全貌（待办 + 便签 + 链接 + 订阅 + 求职进度 + 在招岗位）"
     params = "{}"
 
     def call(self, params, client):
@@ -416,6 +531,8 @@ class QueryAllTool(Tool):
         subs = client.get("/api/subscriptions")
         jobs = client.get("/api/jobs", scope="active", sort="due")
         job_stats = client.get("/api/jobs/stats")
+        postings = client.get("/api/postings", scope="pending")
+        posting_stats = client.get("/api/postings/stats")
 
         todo_lines = [f"#{it.get('id')} {'[完成]' if it.get('done') else '[未完成]'} {it.get('content','')}" for it in todos[:20]]
         note_lines = [f"#{it.get('id')} {it.get('content','')}" for it in notes[:20]]
@@ -426,6 +543,7 @@ class QueryAllTool(Tool):
             f"（共 {job_stats.get('total', 0)} 家，面试中 {job_stats.get('interviewing', 0)}，"
             f"Offer {job_stats.get('offers', 0)}，回复率 {job_stats.get('replyRate', 0)}%）"
         )
+        posting_lines = [_posting_line(it) for it in postings[:5]]
 
         parts = [
             "【待办】" + ("\n" + "\n".join(todo_lines) if todo_lines else "（无）"),
@@ -433,6 +551,9 @@ class QueryAllTool(Tool):
             "【链接】" + ("\n" + "\n".join(link_lines) if link_lines else "（无）"),
             "【订阅】" + ("\n" + "\n".join(sub_lines) if sub_lines else "（无）"),
             "【求职】" + job_head + ("\n" + "\n".join(job_lines) if job_lines else "\n（暂无进行中的投递）"),
+            "【校招岗位】待处理 " + str(posting_stats.get("pending", 0))
+            + " / 已加入 " + str(posting_stats.get("applied", 0))
+            + ("\n" + "\n".join(posting_lines) if posting_lines else "\n（暂无待处理岗位）"),
         ]
         return "\n\n".join(parts)
 
@@ -444,6 +565,7 @@ _TOOL_CLASSES: List[type] = [
     LinkListTool, LinkAddTool,
     AlgorithmSearchTool,
     JobListTool, JobAddTool, JobUpdateStageTool, JobStatsTool,
+    PostingListTool, PostingApplyTool, PostingRefreshTool,
     SubscriptionListTool,
     MessageListTool,
     SummaryGenerateTool,

@@ -19,9 +19,10 @@ public final class ChangeDomain {
     public static final String SUMMARY = "summary";
     public static final String ALGORITHM = "algorithm";
     public static final String JOB = "job";
+    public static final String POSTING = "posting";
 
     public static final List<String> ALL = Arrays.asList(
-            TODO, NOTE, LINK, SUBSCRIPTION, MESSAGE, SUMMARY, ALGORITHM, JOB);
+            TODO, NOTE, LINK, SUBSCRIPTION, MESSAGE, SUMMARY, ALGORITHM, JOB, POSTING);
 
     private ChangeDomain() {
     }

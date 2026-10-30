@@ -38,6 +38,7 @@ public class JobApplicationService {
 
     private final JobApplicationRepository repository;
     private final JobEventRepository eventRepository;
+    private final JobPostingRepository postingRepository;
     private final ChangeEventNotifier notifier;
 
     // ---- 查询 ----
@@ -262,6 +263,16 @@ public class JobApplicationService {
         // 显式删除能保证任何库上都不会留下孤儿时间线
         eventRepository.deleteByJobId(job.getId());
         repository.delete(job);
+        // 岗位池里指向这条投递的记录要断开：否则组件显示「已加入」却点不开一条不存在的投递，
+        // 而且它也不会再回到「待处理」列表里（那是用户放弃这家公司后最想看到的状态）
+        List<JobPosting> linked = postingRepository.findByJobId(job.getId());
+        if (!linked.isEmpty()) {
+            for (JobPosting p : linked) {
+                p.setJobId(null);
+                postingRepository.save(p);
+            }
+            notifier.notify(ChangeDomain.POSTING);
+        }
         notifier.notify(ChangeDomain.JOB);
     }
 

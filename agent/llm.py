@@ -88,7 +88,7 @@ def summarize(raw_text: str, date: str, llm_config=None) -> str:
 
 CHAT_SYSTEM = (
     "你是 Nexus 个人工作台的智能助手。你熟悉用户工作台里的各类信息（待办、便签、快捷链接、"
-    "订阅源、消息、高频算法题、求职投递与面试进度、每日总结），回答简洁、务实、用中文。"
+    "订阅源、消息、高频算法题、求职投递与面试进度、在招的校招岗位、每日总结），回答简洁、务实、用中文。"
 )
 
 
@@ -192,6 +192,13 @@ def _rule_based_classify(message: str, history: Optional[List[Dict[str, str]]] =
         return {"intent": "algorithm_search", "params": {}}
     if has("订阅", "rss", "b站", "bilibili"):
         return {"intent": "subscription_list", "params": {}}
+    # 校招岗位（外面在招的，来自秋招网抓取）。
+    # 放在求职追踪之前判断：用户说「有哪些岗位」问的是外面有什么，
+    # 说「我的投递进度」问的才是自己投了什么。
+    if has("岗位", "校招", "招聘", "在招"):
+        if has("抓取", "刷新", "更新一下", "拉取"):
+            return {"intent": "posting_refresh", "params": {}}
+        return {"intent": "posting_list", "params": {}}
     # 求职追踪：无 LLM 时只降级到只读查询。
     # 写操作（记一条投递 / 改进度）需要从自然语言里抽出公司、岗位、阶段，
     # 规则匹配很容易张冠李戴——宁可让用户手动点，也不写一条「公司名是整句话」的脏数据。

@@ -42,6 +42,9 @@ nexus:
   todo:
     # 待办到期提醒 cron（默认每天 8:30，早于求职提醒，让「今天的待办」排在「今天的面试」前面）
     reminder-cron: ${NEXUS_TODO_REMINDER_CRON:0 30 8 * * *}
+  posting:
+    # 校招岗位抓取 cron（默认每天 7:30，比待办/面试提醒都早）
+    cron: ${NEXUS_POSTING_CRON:0 30 7 * * *}
 
 management:
   endpoints:
