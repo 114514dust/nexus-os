@@ -71,6 +71,11 @@ public class MailSettingsService {
     public MailSettingsDto view() {
         MailSettingsDto dto = load();
         dto.setAuthCode(mask(dto.getAuthCode()));
+        // 没配置账号时，上一次的时间与错误都没有意义，别在界面上留着误导人
+        if (!dto.isConfigured()) {
+            dto.setLastSyncAt("");
+            dto.setLastError("");
+        }
         return dto;
     }
 
