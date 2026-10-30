@@ -32,6 +32,9 @@ public class NotifyService {
     /** 每日总结生成完毕 */
     public static final String EVENT_DIGEST = "digest";
 
+    /** 求职面试提醒 */
+    public static final String EVENT_INTERVIEW = "interview";
+
     /** 同类型事件的去重窗口（毫秒） */
     private static final long DEDUP_WINDOW_MS = 60_000L;
 
@@ -103,6 +106,9 @@ public class NotifyService {
         }
         if (EVENT_DIGEST.equals(event)) {
             return cfg.isOnDigest();
+        }
+        if (EVENT_INTERVIEW.equals(event)) {
+            return cfg.isOnInterview();
         }
         return false;
     }

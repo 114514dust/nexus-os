@@ -36,6 +36,9 @@ nexus:
   feed:
     # 订阅抓取定时触发 cron（默认每 30 分钟）
     cron: ${NEXUS_FEED_CRON:0 */30 * * * *}
+  job:
+    # 求职面试提醒 cron（默认每天 9:00 检查今天/明天的面试与长期无进展的投递）
+    reminder-cron: ${NEXUS_JOB_REMINDER_CRON:0 0 9 * * *}
 
 management:
   endpoints:

@@ -200,6 +200,146 @@ class AlgorithmSearchTool(Tool):
         return "算法题：\n" + out
 
 
+# ---- 求职追踪 ----
+_JOB_STAGE_LABEL = {
+    "wish": "想投",
+    "applied": "已投递",
+    "written": "笔试",
+    "interview1": "一面",
+    "interview2": "二面",
+    "hr": "HR 面",
+    "offer": "Offer",
+    "accepted": "已入职",
+    "rejected": "未通过",
+}
+
+_JOB_CAT_LABEL = {
+    "autumn": "秋招",
+    "spring": "春招",
+    "intern": "实习",
+    "social": "社招",
+    "soe": "国企",
+    "other": "其他",
+}
+
+
+def _job_line(it: dict) -> str:
+    """一行描述一条投递：公司 · 岗位 [类型] —— 进度（下一步 / 日期）"""
+    cat = _JOB_CAT_LABEL.get(it.get("category"), it.get("category", ""))
+    stage = _JOB_STAGE_LABEL.get(it.get("stage"), it.get("stage", ""))
+    head = f"#{it.get('id')} {it.get('company', '')}"
+    if it.get("jobTitle"):
+        head += f" · {it['jobTitle']}"
+    line = f"{head} [{cat}] —— {stage}"
+    extra = []
+    if it.get("nextAt"):
+        extra.append(f"{it['nextAt']}")
+    if it.get("nextAction"):
+        extra.append(str(it["nextAction"]))
+    if extra:
+        line += f"（{' / '.join(extra)}）"
+    return line
+
+
+class JobListTool(Tool):
+    name = "job_list"
+    description = "查看求职投递记录与面试进度（可按类型或范围筛选）"
+    params = '{"category": "autumn|spring|intern|social|soe|other", "scope": "active|closed|all"}'
+
+    def call(self, params, client):
+        query = {}
+        cat = str(params.get("category", "")).strip()
+        if cat in _JOB_CAT_LABEL:
+            query["category"] = cat
+        scope = str(params.get("scope", "")).strip()
+        if scope in ("active", "closed", "all"):
+            query["scope"] = scope
+        query.setdefault("scope", "all")
+        query["sort"] = "due"
+        items = client.get("/api/jobs", **query)
+        lines = [_job_line(it) for it in items[:20]]
+        out = "\n".join(lines) if lines else "（还没有投递记录）"
+        return "求职投递记录：\n" + out + _tail(items)
+
+
+class JobAddTool(Tool):
+    name = "job_add"
+    description = "新增一条求职投递记录（公司必填，其余可选）"
+    params = (
+        '{"company": "公司名", "jobTitle": "岗位", '
+        '"category": "autumn|spring|intern|social|soe|other", '
+        '"url": "https://...", "nextAction": "下一步", "nextAt": "yyyy-MM-dd"}'
+    )
+
+    def call(self, params, client):
+        company = str(params.get("company", "")).strip()
+        if not company:
+            return "错误：缺少公司名称 company"
+        body = {"company": company}
+        for key in ("jobTitle", "url", "nextAction"):
+            v = str(params.get(key, "") or "").strip()
+            if v:
+                body[key] = v
+        cat = str(params.get("category", "")).strip()
+        if cat in _JOB_CAT_LABEL:
+            body["category"] = cat
+        next_at = str(params.get("nextAt", "") or "").strip()
+        if next_at:
+            body["nextAt"] = next_at
+        created = client.post("/api/jobs", body)
+        return f"已记录投递：{_job_line(created)}"
+
+
+class JobUpdateStageTool(Tool):
+    name = "job_update_stage"
+    description = "更新某条投递的进度阶段（可用 id，或用公司名定位）"
+    params = (
+        '{"id": 1, "company": "公司名", '
+        '"stage": "applied|written|interview1|interview2|hr|offer|accepted|rejected", "note": "备注"}'
+    )
+
+    def call(self, params, client):
+        stage = str(params.get("stage", "")).strip()
+        if stage not in _JOB_STAGE_LABEL:
+            return "错误：stage 需为 " + " / ".join(_JOB_STAGE_LABEL.keys())
+
+        job_id = params.get("id")
+        if job_id is None:
+            company = str(params.get("company", "")).strip()
+            if not company:
+                return "错误：需要提供 id 或 company 来定位投递记录"
+            items = client.get("/api/jobs", scope="all")
+            matched = [it for it in items if company in str(it.get("company", ""))]
+            if not matched:
+                return f"没有找到公司包含「{company}」的投递记录"
+            if len(matched) > 1:
+                lines = [_job_line(it) for it in matched]
+                return "匹配到多条记录，请用 id 指定：\n" + "\n".join(lines)
+            job_id = matched[0]["id"]
+
+        body = {"stage": stage}
+        note = str(params.get("note", "") or "").strip()
+        if note:
+            body["stageNote"] = note
+        updated = client.put(f"/api/jobs/{int(job_id)}", body)
+        return f"已更新：{_job_line(updated)}"
+
+
+class JobStatsTool(Tool):
+    name = "job_stats"
+    description = "查看求职概览统计（投递数、面试中、Offer、回复率）"
+    params = "{}"
+
+    def call(self, params, client):
+        s = client.get("/api/jobs/stats")
+        return (
+            f"求职概览：共投递 {s.get('total', 0)} 家，进行中 {s.get('active', 0)} 家，"
+            f"面试中 {s.get('interviewing', 0)} 家，Offer {s.get('offers', 0)} 个，"
+            f"未通过 {s.get('rejected', 0)} 家，回复率 {s.get('replyRate', 0)}%；"
+            f"近 7 天有 {s.get('upcoming', 0)} 项安排。"
+        )
+
+
 # ---- 订阅 ----
 class SubscriptionListTool(Tool):
     name = "subscription_list"
@@ -250,7 +390,7 @@ class SummaryGenerateTool(Tool):
 # ---- 综合查询 ----
 class QueryAllTool(Tool):
     name = "query_all"
-    description = "综合查看工作台全貌（待办 + 便签 + 链接 + 订阅）"
+    description = "综合查看工作台全貌（待办 + 便签 + 链接 + 订阅 + 求职进度）"
     params = "{}"
 
     def call(self, params, client):
@@ -258,17 +398,25 @@ class QueryAllTool(Tool):
         notes = client.get("/api/notes")
         links = client.get("/api/links")
         subs = client.get("/api/subscriptions")
+        jobs = client.get("/api/jobs", scope="active", sort="due")
+        job_stats = client.get("/api/jobs/stats")
 
         todo_lines = [f"#{it.get('id')} {'[完成]' if it.get('done') else '[未完成]'} {it.get('content','')}" for it in todos[:20]]
         note_lines = [f"#{it.get('id')} {it.get('content','')}" for it in notes[:20]]
         link_lines = [f"#{it.get('id')} {it.get('title','')} → {it.get('url','')}" for it in links[:20]]
         sub_lines = [f"#{it.get('id')} [{'B站' if it.get('type')=='bilibili' else 'RSS'}] {it.get('name','')}" for it in subs[:20]]
+        job_lines = [_job_line(it) for it in jobs[:10]]
+        job_head = (
+            f"（共 {job_stats.get('total', 0)} 家，面试中 {job_stats.get('interviewing', 0)}，"
+            f"Offer {job_stats.get('offers', 0)}，回复率 {job_stats.get('replyRate', 0)}%）"
+        )
 
         parts = [
             "【待办】" + ("\n" + "\n".join(todo_lines) if todo_lines else "（无）"),
             "【便签】" + ("\n" + "\n".join(note_lines) if note_lines else "（无）"),
             "【链接】" + ("\n" + "\n".join(link_lines) if link_lines else "（无）"),
             "【订阅】" + ("\n" + "\n".join(sub_lines) if sub_lines else "（无）"),
+            "【求职】" + job_head + ("\n" + "\n".join(job_lines) if job_lines else "\n（暂无进行中的投递）"),
         ]
         return "\n\n".join(parts)
 
@@ -279,6 +427,7 @@ _TOOL_CLASSES: List[type] = [
     NoteListTool, NoteAddTool,
     LinkListTool, LinkAddTool,
     AlgorithmSearchTool,
+    JobListTool, JobAddTool, JobUpdateStageTool, JobStatsTool,
     SubscriptionListTool,
     MessageListTool,
     SummaryGenerateTool,

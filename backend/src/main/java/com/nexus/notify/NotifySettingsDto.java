@@ -27,4 +27,7 @@ public class NotifySettingsDto {
 
     /** 每日总结生成后推送 */
     private boolean onDigest;
+
+    /** 求职面试提醒（今日/明日面试、投递长期无进展） */
+    private boolean onInterview;
 }

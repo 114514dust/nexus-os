@@ -65,6 +65,10 @@
             <input v-model="notifyForm.onDigest" type="checkbox" />
             <span>每日总结生成后推送</span>
           </label>
+          <label class="setting-check">
+            <input v-model="notifyForm.onInterview" type="checkbox" />
+            <span>求职面试提醒（每天 9:00 检查今天/明天的面试与超 7 天无进展的投递）</span>
+          </label>
         </div>
         <p class="setting-hint">
           只做出站推送（群机器人 webhook），无需公网 IP。配好后先点「发送测试」确认能收到，再打开总开关。
@@ -109,7 +113,8 @@ const notifyForm = reactive({
   webhookUrl: '',
   secret: '',
   onFeed: true,
-  onDigest: true
+  onDigest: true,
+  onInterview: true
 })
 
 onMounted(async () => {

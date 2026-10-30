@@ -139,4 +139,14 @@ export function registerBuiltinWidgets() {
     configSchema: [{ key: 'title', label: '标题', type: 'text', default: 'AI 对话' }],
     component: defineAsyncComponent(() => import('./ChatWidget.vue'))
   })
+  registerWidget({
+    type: 'job',
+    name: '求职追踪',
+    description: '记录秋招/实习/社招投递，跟踪面试进度、提醒下一步，支持复盘笔记',
+    icon: 'job',
+    defaultW: 6,
+    defaultH: 10,
+    configSchema: [{ key: 'title', label: '标题', type: 'text', default: '求职追踪' }],
+    component: defineAsyncComponent(() => import('./JobWidget.vue'))
+  })
 }

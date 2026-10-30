@@ -8,7 +8,8 @@ const emptySettings: NotifySettings = {
   webhookUrl: '',
   secret: '',
   onFeed: true,
-  onDigest: true
+  onDigest: true,
+  onInterview: true
 }
 
 export const useNotifyStore = defineStore('notify', {

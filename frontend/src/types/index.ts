@@ -92,6 +92,62 @@ export interface AlgorithmQuestion {
   updatedAt: string
 }
 
+/** 求职进度：线性阶段（rejected 是旁路终态，不在推进链上） */
+export type JobStage =
+  | 'wish'
+  | 'applied'
+  | 'written'
+  | 'interview1'
+  | 'interview2'
+  | 'hr'
+  | 'offer'
+  | 'accepted'
+  | 'rejected'
+
+/** 投递类型：秋招 / 春招 / 实习 / 社招 / 国企 / 其他 */
+export type JobCategory = 'autumn' | 'spring' | 'intern' | 'social' | 'soe' | 'other'
+
+export interface JobApplication {
+  id: number
+  company: string
+  jobTitle: string
+  category: JobCategory
+  stage: JobStage
+  url: string | null
+  nextAction: string | null
+  /** yyyy-MM-dd，只到天 */
+  nextAt: string | null
+  starred: boolean
+  note: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+/** 时间线中的一条进展 */
+export interface JobEvent {
+  id: number
+  jobId: number
+  stage: JobStage
+  note: string | null
+  occurredAt: string
+}
+
+export interface JobDetail {
+  job: JobApplication
+  events: JobEvent[]
+}
+
+export interface JobStats {
+  total: number
+  active: number
+  interviewing: number
+  offers: number
+  rejected: number
+  replied: number
+  replyRate: number
+  upcoming: number
+}
+
 export interface LlmSettings {
   apiKey: string
   baseUrl: string
@@ -108,6 +164,8 @@ export interface NotifySettings {
   secret: string
   onFeed: boolean
   onDigest: boolean
+  /** 求职面试提醒 */
+  onInterview: boolean
 }
 
 export interface Page {

@@ -192,6 +192,13 @@ def _rule_based_classify(message: str, history: Optional[List[Dict[str, str]]] =
         return {"intent": "algorithm_search", "params": {}}
     if has("订阅", "rss", "b站", "bilibili"):
         return {"intent": "subscription_list", "params": {}}
+    # 求职追踪：无 LLM 时只降级到只读查询。
+    # 写操作（记一条投递 / 改进度）需要从自然语言里抽出公司、岗位、阶段，
+    # 规则匹配很容易张冠李戴——宁可让用户手动点，也不写一条「公司名是整句话」的脏数据。
+    if has("求职", "投递", "秋招", "春招", "社招", "有哪些面试"):
+        if has("统计", "概览", "几家", "多少家", "回复率"):
+            return {"intent": "job_stats", "params": {}}
+        return {"intent": "job_list", "params": {}}
     if has("消息", "通知", "动态"):
         return {"intent": "message_list", "params": {}}
     if has("总结", "消化", "复盘"):
