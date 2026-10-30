@@ -126,7 +126,15 @@ export function registerBuiltinWidgets() {
     icon: 'algorithm',
     defaultW: 6,
     defaultH: 10,
-    configSchema: [{ key: 'title', label: '标题', type: 'text', default: '高频算法题' }],
+    configSchema: [
+      { key: 'title', label: '标题', type: 'text', default: '高频算法题' },
+      {
+        key: 'openInNewTab',
+        label: '新窗口打开题目（关闭则在组件内显示）',
+        type: 'boolean',
+        default: true
+      }
+    ],
     component: defineAsyncComponent(() => import('./AlgorithmWidget.vue'))
   })
   registerWidget({

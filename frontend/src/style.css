@@ -1299,6 +1299,57 @@ button {
   min-height: 0;
 }
 
+/* 题目内嵌浏览：不离开工作台，直接做题 */
+.algo-embed {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  gap: 8px;
+}
+
+.algo-embed-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.algo-embed-bar .btn {
+  flex-shrink: 0;
+  padding: 4px 10px;
+}
+
+.algo-embed-bar .btn.external {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.algo-embed-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+}
+
+.algo-embed-frame {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.algo-embed-hint {
+  flex-shrink: 0;
+  font-size: 11px;
+  color: var(--text-2);
+  line-height: 1.5;
+}
+
 .algo-toolbar {
   display: flex;
   gap: 6px;
@@ -1426,6 +1477,18 @@ button {
   color: var(--accent);
 }
 
+/* 内嵌模式下题目名是按钮，去掉浏览器默认的按钮外观 */
+.algo-title-btn {
+  padding: 0;
+  border: none;
+  background: transparent;
+  text-align: left;
+  font-size: 13px;
+  font-family: inherit;
+  line-height: inherit;
+  cursor: pointer;
+}
+
 .algo-freq {
   flex-shrink: 0;
   font-size: 12px;
@@ -1526,6 +1589,14 @@ button {
 
 .algo-note-link:hover {
   text-decoration: underline;
+}
+
+.algo-note-link.as-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font-size: 13px;
 }
 
 .algo-note-close {
