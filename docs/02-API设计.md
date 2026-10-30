@@ -105,9 +105,11 @@
 | PUT | `/api/todos/{id}` | 更新待办（字段为 null 表示不更新） |
 | DELETE | `/api/todos/{id}` | 删除待办 |
 
-**POST 请求体**：`{ "content": "写周报" }`（`content` 必填，≤512 字）
+**POST 请求体**：`{ "content": "写周报", "dueDate": "2026-11-02" }`（`content` 必填，≤512 字；`dueDate` 可选，`yyyy-MM-dd`）
 
 **PUT 请求体**：`{ "content": "改写周报", "done": true }`（均可选）
+
+`dueDate` 遵循「null = 不更新」的约定，因此**清空到期日要用 `clearDueDate: true`**，不能传 null。
 
 **待办对象**：
 
@@ -116,9 +118,27 @@
   "id": 1,
   "content": "写周报",
   "done": false,
+  "dueDate": "2026-11-02",
   "createdAt": "2026-10-29T18:00:00"
 }
 ```
+
+### 4. 求职追踪
+
+| 方法 | 路径 | 说明 |
+|---|---|---|
+| GET | `/api/jobs` | 列表，支持 `keyword/category/stage/scope/sort` |
+| GET | `/api/jobs/stats` | 概览统计（全量，不受筛选影响） |
+| GET | `/api/jobs/{id}` | 详情（记录 + 进展时间线） |
+| POST | `/api/jobs` | 新建（只有 `company` 必填） |
+| PUT | `/api/jobs/{id}` | 更新；`stage` 变化时自动写一条时间线 |
+| POST | `/api/jobs/{id}/advance` | 推进到下一阶段 |
+| POST | `/api/jobs/{id}/events` | 只追加一条进展备注，不改阶段 |
+| DELETE | `/api/jobs/{id}/events/{eventId}` | 删除一条进展记录（不影响当前阶段） |
+| DELETE | `/api/jobs/{id}` | 删除整条投递（连带时间线） |
+
+`scope`：`active`（默认，未到终态）/ `closed`（已入职、未通过）/ `all`；`sort`：`recent` / `due` / `company`，星标永远置顶。
+`nextAt` 同样遵循「null = 不更新」，清空日期用 `clearNextAt: true`。
 
 ---
 
