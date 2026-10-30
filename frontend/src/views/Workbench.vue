@@ -71,7 +71,7 @@
         </div>
       </transition>
 
-      <main class="canvas" :class="{ editing: editMode }">
+      <main ref="canvasRef" class="canvas" :class="{ editing: editMode }">
         <GridLayout
           v-model:layout="store.items"
           :col-num="12"
@@ -144,6 +144,7 @@ import type { Page, WidgetDefinition } from '@/types'
 
 const store = useLayoutStore()
 const pagesStore = usePagesStore()
+const canvasRef = ref<HTMLElement | null>(null)
 const defs = ref<WidgetDefinition[]>([])
 const panelOpen = ref(false)
 const configIdx = ref<number | null>(null)
@@ -204,6 +205,13 @@ async function switchPage(id: number) {
   panelOpen.value = false
   closeConfig()
   await store.load(id)
+  // 换页后回到顶部：上一个页面的滚动位置对新页面没有意义
+  resetScroll()
+}
+
+/** 把画布滚动位置归零 */
+function resetScroll() {
+  canvasRef.value?.scrollTo({ top: 0 })
 }
 
 function startCreate() {
@@ -219,6 +227,7 @@ async function confirmCreate() {
   editMode.value = false
   closeConfig()
   await store.load(page.id)
+  resetScroll()
 }
 
 function cancelCreate() {
@@ -252,6 +261,7 @@ async function removePage(page: Page) {
   } else {
     store.items = []
   }
+  resetScroll()
 }
 
 function addWidget(def: WidgetDefinition) {

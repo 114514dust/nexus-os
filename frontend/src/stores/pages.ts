@@ -2,6 +2,15 @@ import { defineStore } from 'pinia'
 import { fetchPages, createPage, renamePage, deletePage } from '@/api/pages'
 import type { Page } from '@/types'
 
+/** 记住上次停留的页面，刷新后不用每次都回到第一页 */
+const CURRENT_KEY = 'nexus.currentPageId'
+
+function readSavedId(): number | null {
+  const raw = localStorage.getItem(CURRENT_KEY)
+  const id = raw === null ? NaN : Number(raw)
+  return Number.isFinite(id) ? id : null
+}
+
 export const usePagesStore = defineStore('pages', {
   state: () => ({
     pages: [] as Page[],
@@ -13,8 +22,15 @@ export const usePagesStore = defineStore('pages', {
       this.loading = true
       try {
         this.pages = await fetchPages()
-        if (this.currentId === null && this.pages.length > 0) {
-          this.currentId = this.pages[0].id
+        if (this.pages.length === 0) {
+          this.currentId = null
+          return
+        }
+        // 优先恢复上次的页面，页面已被删除时退回第一个
+        const saved = readSavedId()
+        const exists = saved !== null && this.pages.some((p) => p.id === saved)
+        if (!exists || this.currentId === null) {
+          this.currentId = exists ? saved : this.pages[0].id
         }
       } finally {
         this.loading = false
@@ -22,11 +38,12 @@ export const usePagesStore = defineStore('pages', {
     },
     select(id: number) {
       this.currentId = id
+      localStorage.setItem(CURRENT_KEY, String(id))
     },
     async create(name: string) {
       const page = await createPage(name)
       this.pages.push(page)
-      this.currentId = page.id
+      this.select(page.id)
       return page
     },
     async rename(id: number, name: string) {
@@ -39,7 +56,12 @@ export const usePagesStore = defineStore('pages', {
       await deletePage(id)
       this.pages = this.pages.filter((p) => p.id !== id)
       if (this.currentId === id) {
-        this.currentId = this.pages.length > 0 ? this.pages[0].id : null
+        if (this.pages.length > 0) {
+          this.select(this.pages[0].id)
+        } else {
+          this.currentId = null
+          localStorage.removeItem(CURRENT_KEY)
+        }
       }
     }
   }

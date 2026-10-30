@@ -24,6 +24,37 @@ body {
   line-height: 1.6;
 }
 
+/* 统一细滚动条：默认系统滚动条太粗，会把卡片视觉割裂 */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #2f3542 transparent;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #2f3542;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+  border-radius: 999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #3d4453;
+  background-clip: padding-box;
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
 button {
   font-family: inherit;
   cursor: pointer;
@@ -389,14 +420,28 @@ button {
   color: #fff;
 }
 
-/* 时钟 */
+/* 时钟：卡片内居中，字号随视口自适应，等宽数字避免秒数跳动时抖动 */
+.clock {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  text-align: center;
+}
+
 .clock .time {
-  font-size: 32px;
+  font-size: clamp(26px, 2.4vw, 52px);
   font-weight: 600;
+  line-height: 1.15;
+  letter-spacing: 1px;
+  font-variant-numeric: tabular-nums;
 }
 
 .clock .date {
   color: var(--text-2);
+  font-size: 13px;
 }
 
 /* 待办 */
@@ -603,31 +648,46 @@ button {
   border-color: var(--accent);
 }
 
+/* 链接列表：自适应网格，宽卡片时自动多列排布，不会大片留白 */
 .link-list {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(132px, 1fr));
+  gap: 6px;
+  align-content: start;
 }
 
 .link-item {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 4px;
+  min-width: 0;
+  padding: 7px 8px 7px 10px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  transition: border-color 0.15s;
 }
 
-.link-item a {
+.link-item:hover {
+  border-color: var(--accent);
+}
+
+.link-item a,
+.link-open {
   flex: 1;
-  color: var(--accent);
+  min-width: 0;
+  color: var(--text);
   text-decoration: none;
-  padding: 4px 8px;
-  border-radius: 6px;
+  padding: 0;
+  font-size: 13px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.link-item a:hover {
-  background: var(--surface-2);
+.link-item a:hover,
+.link-open:hover {
+  color: var(--accent);
 }
 
 .link-item .del {
@@ -909,11 +969,21 @@ button {
 
 .msg-meta {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 6px;
   margin-bottom: 4px;
   font-size: 12px;
   color: var(--text-2);
+}
+
+/* 发件人名字可能很长，窄卡片里截断而不是把时间挤出去 */
+.msg-meta .sender,
+.msg-meta .channel {
+  max-width: 45%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .msg-meta .tag {
