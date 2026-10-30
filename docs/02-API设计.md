@@ -159,6 +159,29 @@
 `apply` 是幂等的：已加入过返回原投递（`created=false`）；若那条投递已被删除，则允许重新加入。
 截止文案能解析成日期时（`2026-11-15` / `11月15日`）会自动填进投递的 `nextAt`。
 
+### 6. 邮箱消息
+
+订阅 QQ 邮箱（IMAP）收信，自动判定重要性；高置信度邮件直接转成待办。**只读邮箱**：不标已读、不移动、不删除服务端邮件。
+
+| 方法 | 路径 | 说明 |
+|---|---|---|
+| GET | `/api/mail/settings` | 读取配置，授权码打码成 `****abcd` |
+| PUT | `/api/mail/settings` | 保存配置；`authCode` 以 `****` 开头表示「不修改」 |
+| POST | `/api/mail/probe` | 测试连接，返回收件箱总封数（只读） |
+| POST | `/api/mail/sync` | 立即收取一次，返回 `{fetched, high, medium, todos, highlights}` |
+| GET | `/api/mail/messages` | 列表，支持 `scope/keyword/limit` |
+| GET | `/api/mail/messages/{id}` | 详情（含纯文本正文） |
+| POST | `/api/mail/messages/{id}/todo` | 手动转成待办 |
+| POST | `/api/mail/messages/{id}/ignore` | 不再显示这封邮件 |
+| DELETE | `/api/mail/messages/{id}` | 删除邮件记录（不连带删除已生成的待办） |
+| GET | `/api/mail/stats` | 概览（重要 / 可关注 / 已转待办 / 已收录 / 上次收取 / 失败原因） |
+
+`scope`：`important`（默认，高 + 中置信度且未忽略）/ `todo`（已转待办）/ `all`。
+`importantLevel`：`high`（≥70 分，自动建待办）/ `medium`（45–69）/ `low`（不进重要列表）。
+`verdictBy`：`rule`（纯规则）/ `llm`（大模型参与过灰区判定或待办提炼）。
+
+`sync` / `probe` 用 POST 而非 GET：会连外部 IMAP，属于有副作用的动作，不应被缓存或预取。前端对这两个请求单独把超时放宽到 90 秒。
+
 ---
 
 ## 五、规划中 API（Phase 2 / 3 / 4）
