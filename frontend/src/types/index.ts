@@ -108,6 +108,12 @@ export interface Page {
 export interface ChatMessage {
   role: 'user' | 'assistant'
   content: string
+  /** 后端持久化后返回的字段（前端本地发送时为 undefined） */
+  id?: number
+  intent?: string
+  createdAt?: string
+  /** 仅前端本地标记：该条为发送失败的提示，可重试 */
+  error?: boolean
 }
 
 export interface ChatReply {

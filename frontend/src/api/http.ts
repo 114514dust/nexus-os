@@ -24,7 +24,20 @@ http.interceptors.response.use(
       const msg = body?.message || (status >= 500 ? '服务器开小差了，请稍后重试' : '请求失败')
       return Promise.reject(new Error(msg))
     }
-    return Promise.reject(new Error('网络连接失败，请检查网络'))
+
+    // 无响应：区分 超时 / 主动取消 / 真正连不上，避免一律提示"网络连接失败"
+    const code = error.code as string | undefined
+    if (code === 'ECONNABORTED' || code === 'ETIMEDOUT') {
+      const raw = (error.config?.timeout ?? http.defaults.timeout ?? 0) as number
+      const seconds = Math.round(raw / 1000)
+      return Promise.reject(new Error(`请求超时（${seconds} 秒），模型响应较慢，请稍后重试`))
+    }
+    if (code === 'ERR_CANCELED') {
+      return Promise.reject(new Error('请求已取消'))
+    }
+    return Promise.reject(
+      new Error('无法连接后端服务，请确认服务是否已启动（默认 http://localhost:8080）')
+    )
   }
 )
 

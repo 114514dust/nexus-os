@@ -1643,6 +1643,38 @@ button {
   font-style: italic;
 }
 
+/* 发送失败的气泡：可重试 */
+.chat-msg.assistant .chat-bubble.chat-error {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  background: color-mix(in srgb, var(--danger, #e5484d) 10%, var(--surface-2));
+  border-color: color-mix(in srgb, var(--danger, #e5484d) 35%, var(--border));
+  color: var(--text);
+  white-space: pre-wrap;
+}
+
+.chat-retry {
+  flex: none;
+  align-self: center;
+  padding: 2px 10px;
+  font-size: 12px;
+  border-radius: 6px;
+  border: 1px solid color-mix(in srgb, var(--danger, #e5484d) 45%, var(--border));
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.chat-retry:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--danger, #e5484d) 15%, var(--surface));
+}
+
+.chat-retry:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 /* 助手气泡内的 Markdown 排版微调（覆盖通用 markdown-body 的过宽间距） */
 .chat-msg.assistant .markdown-body {
   font-size: 13px;

@@ -12,7 +12,11 @@
         </ul>
       </div>
       <div v-for="(m, i) in store.messages" :key="i" class="chat-msg" :class="m.role">
-        <div v-if="m.role === 'assistant'" class="chat-bubble markdown-body" v-html="render(m.content)"></div>
+        <div v-if="m.error" class="chat-bubble chat-error">
+          <span>{{ m.content }}</span>
+          <button class="chat-retry" :disabled="store.sending" @click="store.retry()">重试</button>
+        </div>
+        <div v-else-if="m.role === 'assistant'" class="chat-bubble markdown-body" v-html="render(m.content)"></div>
         <div v-else class="chat-bubble">{{ m.content }}</div>
       </div>
       <div v-if="store.sending" class="chat-msg assistant">
