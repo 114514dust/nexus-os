@@ -18,6 +18,7 @@
 <script setup lang="ts">
 import { onMounted } from 'vue'
 import { useNoteStore } from '@/stores/notes'
+import { useLiveReload } from '@/composables/useLiveReload'
 import type { Note } from '@/types'
 
 defineProps<{ config?: Record<string, any> }>()
@@ -26,6 +27,9 @@ const store = useNoteStore()
 const timers = new Map<number, number>()
 
 onMounted(() => store.load())
+
+// AI 对话调工具、或其它来源改了便签时，自动拉取最新数据
+useLiveReload('note', () => store.load())
 
 async function add() {
   await store.add('')

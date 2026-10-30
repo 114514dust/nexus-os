@@ -1,6 +1,8 @@
 package com.nexus.message;
 
 import com.nexus.common.PageResult;
+import com.nexus.event.ChangeDomain;
+import com.nexus.event.ChangeEventNotifier;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -18,6 +20,7 @@ import java.time.LocalDateTime;
 public class MessageService {
 
     private final MessageRepository messageRepository;
+    private final ChangeEventNotifier notifier;
 
     @Transactional
     public Message receive(MessageCreateRequest req) {
@@ -28,7 +31,9 @@ public class MessageService {
         msg.setContent(req.getContent());
         msg.setReceivedAt(LocalDateTime.now());
         msg.setProcessed(false);
-        return messageRepository.save(msg);
+        Message saved = messageRepository.save(msg);
+        notifier.notify(ChangeDomain.MESSAGE);
+        return saved;
     }
 
     @Transactional(readOnly = true)

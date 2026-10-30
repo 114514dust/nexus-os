@@ -1,5 +1,7 @@
 package com.nexus.summary;
 
+import com.nexus.event.ChangeDomain;
+import com.nexus.event.ChangeEventNotifier;
 import com.nexus.message.Message;
 import com.nexus.message.MessageRepository;
 import com.nexus.note.Note;
@@ -29,6 +31,7 @@ public class SummaryService {
     private final TodoRepository todoRepository;
     private final NoteRepository noteRepository;
     private final DigestClient digestClient;
+    private final ChangeEventNotifier notifier;
 
     /**
      * 对指定日期执行「消化」，生成/更新当天总结。同一日期重复执行会覆盖（幂等）。
@@ -59,7 +62,9 @@ public class SummaryService {
         if (summary.getCreatedAt() == null) {
             summary.setCreatedAt(LocalDateTime.now());
         }
-        return summaryRepository.save(summary);
+        Summary saved = summaryRepository.save(summary);
+        notifier.notify(ChangeDomain.SUMMARY);
+        return saved;
     }
 
     @Transactional(readOnly = true)

@@ -109,6 +109,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import { useAlgorithmStore } from '@/stores/algorithms'
+import { useLiveReload } from '@/composables/useLiveReload'
 import { renderMarkdown } from '@/utils/markdown'
 import { toastError, friendlyError } from '@/utils/toast'
 import type { AlgorithmQuestion } from '@/types'
@@ -141,6 +142,9 @@ const editingQuestion = computed(() =>
 const previewHtml = computed(() => renderMarkdown(draftNote.value || ''))
 
 onMounted(() => reload())
+
+// 题库变更（含 AI 操作）时按当前筛选条件重新拉取
+useLiveReload('algorithm', reload)
 
 function reload() {
   store.load({ keyword: keyword.value.trim() || undefined, difficulty: difficulty.value, sort: sort.value })

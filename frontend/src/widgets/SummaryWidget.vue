@@ -23,6 +23,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted } from 'vue'
 import { useSummaryStore } from '@/stores/summaries'
+import { useLiveReload } from '@/composables/useLiveReload'
 import { renderMarkdown } from '@/utils/markdown'
 import { toastError, friendlyError } from '@/utils/toast'
 
@@ -51,6 +52,9 @@ onMounted(() => {
     timer = window.setInterval(() => store.load(), 60000)
   }
 })
+
+// 生成/更新每日总结后立即刷新，不必等 60s 轮询
+useLiveReload('summary', () => store.load())
 
 onUnmounted(() => {
   if (timer) window.clearInterval(timer)

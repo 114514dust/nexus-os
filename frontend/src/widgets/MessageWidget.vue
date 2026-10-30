@@ -22,6 +22,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted } from 'vue'
 import { useMessageStore } from '@/stores/messages'
+import { useLiveReload } from '@/composables/useLiveReload'
 
 const props = defineProps<{ config?: Record<string, any> }>()
 
@@ -45,6 +46,9 @@ onMounted(() => {
   reload()
   timer = window.setInterval(reload, refreshInterval.value * 1000)
 })
+
+// 有新消息（订阅抓取 / 外部接收 / AI 操作）时立即刷新，不用等下一次轮询
+useLiveReload('message', reload)
 
 onUnmounted(() => {
   if (timer) window.clearInterval(timer)

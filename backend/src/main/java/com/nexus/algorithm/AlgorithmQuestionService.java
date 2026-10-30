@@ -2,6 +2,8 @@ package com.nexus.algorithm;
 
 import com.nexus.common.ApiException;
 import com.nexus.common.ErrorCode;
+import com.nexus.event.ChangeDomain;
+import com.nexus.event.ChangeEventNotifier;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -25,6 +27,7 @@ public class AlgorithmQuestionService {
     private static final List<String> DIFFICULTIES = List.of("easy", "medium", "hard");
 
     private final AlgorithmQuestionRepository repository;
+    private final ChangeEventNotifier notifier;
 
     @Transactional(readOnly = true)
     public List<AlgorithmQuestion> list(String keyword, String difficulty, String sort) {
@@ -72,7 +75,9 @@ public class AlgorithmQuestionService {
         q.setNote("");
         q.setCreatedAt(LocalDateTime.now());
         q.setUpdatedAt(LocalDateTime.now());
-        return repository.save(q);
+        AlgorithmQuestion saved = repository.save(q);
+        notifier.notify(ChangeDomain.ALGORITHM);
+        return saved;
     }
 
     @Transactional
@@ -101,12 +106,15 @@ public class AlgorithmQuestionService {
             q.setNote(req.getNote());
         }
         q.setUpdatedAt(LocalDateTime.now());
-        return repository.save(q);
+        AlgorithmQuestion saved = repository.save(q);
+        notifier.notify(ChangeDomain.ALGORITHM);
+        return saved;
     }
 
     @Transactional
     public void delete(Long id) {
         repository.delete(getOrThrow(id));
+        notifier.notify(ChangeDomain.ALGORITHM);
     }
 
     private AlgorithmQuestion getOrThrow(Long id) {

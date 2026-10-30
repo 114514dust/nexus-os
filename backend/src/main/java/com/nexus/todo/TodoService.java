@@ -2,6 +2,8 @@ package com.nexus.todo;
 
 import com.nexus.common.ApiException;
 import com.nexus.common.ErrorCode;
+import com.nexus.event.ChangeDomain;
+import com.nexus.event.ChangeEventNotifier;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
@@ -18,6 +20,7 @@ import java.util.List;
 public class TodoService {
 
     private final TodoRepository todoRepository;
+    private final ChangeEventNotifier notifier;
 
     @Transactional(readOnly = true)
     public List<Todo> list() {
@@ -30,7 +33,9 @@ public class TodoService {
         todo.setContent(req.getContent());
         todo.setDone(false);
         todo.setCreatedAt(LocalDateTime.now());
-        return todoRepository.save(todo);
+        Todo saved = todoRepository.save(todo);
+        notifier.notify(ChangeDomain.TODO);
+        return saved;
     }
 
     @Transactional
@@ -42,6 +47,7 @@ public class TodoService {
         if (req.getDone() != null) {
             todo.setDone(req.getDone());
         }
+        notifier.notify(ChangeDomain.TODO);
         return todo;
     }
 
@@ -49,6 +55,7 @@ public class TodoService {
     public void delete(Long id) {
         Todo todo = getOrThrow(id);
         todoRepository.delete(todo);
+        notifier.notify(ChangeDomain.TODO);
     }
 
     private Todo getOrThrow(Long id) {

@@ -2,6 +2,8 @@ package com.nexus.link;
 
 import com.nexus.common.ApiException;
 import com.nexus.common.ErrorCode;
+import com.nexus.event.ChangeDomain;
+import com.nexus.event.ChangeEventNotifier;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
@@ -18,6 +20,7 @@ import java.util.List;
 public class LinkService {
 
     private final LinkRepository linkRepository;
+    private final ChangeEventNotifier notifier;
 
     @Transactional(readOnly = true)
     public List<Link> list() {
@@ -31,7 +34,9 @@ public class LinkService {
         link.setUrl(req.getUrl());
         link.setSortOrder(req.getSortOrder() != null ? req.getSortOrder() : (int) linkRepository.count());
         link.setCreatedAt(LocalDateTime.now());
-        return linkRepository.save(link);
+        Link saved = linkRepository.save(link);
+        notifier.notify(ChangeDomain.LINK);
+        return saved;
     }
 
     @Transactional
@@ -46,6 +51,7 @@ public class LinkService {
         if (req.getSortOrder() != null) {
             link.setSortOrder(req.getSortOrder());
         }
+        notifier.notify(ChangeDomain.LINK);
         return link;
     }
 
@@ -53,6 +59,7 @@ public class LinkService {
     public void delete(Long id) {
         Link link = getOrThrow(id);
         linkRepository.delete(link);
+        notifier.notify(ChangeDomain.LINK);
     }
 
     private Link getOrThrow(Long id) {

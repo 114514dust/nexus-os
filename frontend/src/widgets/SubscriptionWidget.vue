@@ -36,6 +36,7 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useSubscriptionStore } from '@/stores/subscriptions'
+import { useLiveReload } from '@/composables/useLiveReload'
 import { toastError, friendlyError } from '@/utils/toast'
 import type { Subscription } from '@/types'
 
@@ -48,6 +49,9 @@ const fetchMsg = ref('')
 const canAdd = computed(() => form.name.trim() !== '' && form.url.trim() !== '')
 
 onMounted(() => store.load())
+
+// 订阅源被增删改（含 AI 操作）时自动刷新；抓取到新消息时消息组件会自己刷新
+useLiveReload('subscription', () => store.load())
 
 async function add() {
   if (!canAdd.value) return

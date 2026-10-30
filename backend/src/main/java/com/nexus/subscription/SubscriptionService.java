@@ -2,6 +2,8 @@ package com.nexus.subscription;
 
 import com.nexus.common.ApiException;
 import com.nexus.common.ErrorCode;
+import com.nexus.event.ChangeDomain;
+import com.nexus.event.ChangeEventNotifier;
 import com.nexus.message.Message;
 import com.nexus.message.MessageRepository;
 import lombok.RequiredArgsConstructor;
@@ -25,6 +27,7 @@ public class SubscriptionService {
     private final SubscriptionRepository subscriptionRepository;
     private final FeedItemRepository feedItemRepository;
     private final MessageRepository messageRepository;
+    private final ChangeEventNotifier notifier;
 
     @Autowired
     private List<FeedFetcher> fetchers;
@@ -39,7 +42,9 @@ public class SubscriptionService {
         sub.setUrl(req.getUrl());
         sub.setEnabled(true);
         sub.setCreatedAt(LocalDateTime.now());
-        return subscriptionRepository.save(sub);
+        Subscription saved = subscriptionRepository.save(sub);
+        notifier.notify(ChangeDomain.SUBSCRIPTION);
+        return saved;
     }
 
     @Transactional(readOnly = true)
@@ -51,13 +56,16 @@ public class SubscriptionService {
     public void delete(Long id) {
         subscriptionRepository.deleteById(id);
         feedItemRepository.deleteBySubscriptionId(id);
+        notifier.notify(ChangeDomain.SUBSCRIPTION);
     }
 
     @Transactional
     public Subscription toggle(Long id) {
         Subscription sub = getOrThrow(id);
         sub.setEnabled(!sub.isEnabled());
-        return subscriptionRepository.save(sub);
+        Subscription saved = subscriptionRepository.save(sub);
+        notifier.notify(ChangeDomain.SUBSCRIPTION);
+        return saved;
     }
 
     // ---- 抓取 ----
@@ -65,7 +73,12 @@ public class SubscriptionService {
     /** 手动抓取单个订阅源 */
     @Transactional
     public int fetchOne(Long id) {
-        return doFetch(getOrThrow(id));
+        int added = doFetch(getOrThrow(id));
+        // 只在外层通知一次：doFetch 可能被循环调用，逐条推送会造成重复刷新
+        if (added > 0) {
+            notifier.notify(ChangeDomain.MESSAGE);
+        }
+        return added;
     }
 
     /** 抓取所有启用订阅源（定时任务调用） */
@@ -74,6 +87,9 @@ public class SubscriptionService {
         int total = 0;
         for (Subscription sub : subscriptionRepository.findByEnabledTrue()) {
             total += doFetch(sub);
+        }
+        if (total > 0) {
+            notifier.notify(ChangeDomain.MESSAGE);
         }
         return total;
     }

@@ -41,6 +41,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useLinkStore } from '@/stores/links'
+import { useLiveReload } from '@/composables/useLiveReload'
 import type { Link } from '@/types'
 
 const props = defineProps<{ config?: Record<string, any> }>()
@@ -56,6 +57,9 @@ const openInNewTab = computed(() => props.config?.openInNewTab ?? true)
 const embed = ref<Link | null>(null)
 
 onMounted(() => store.load())
+
+// AI 对话调工具、或其它来源改了链接时，自动拉取最新数据
+useLiveReload('link', () => store.load())
 
 async function add() {
   const t = title.value.trim()

@@ -18,6 +18,7 @@
 <script setup lang="ts">
 import { computed, ref, onMounted } from 'vue'
 import { useTodoStore } from '@/stores/todos'
+import { useLiveReload } from '@/composables/useLiveReload'
 
 const props = defineProps<{ config?: Record<string, any> }>()
 
@@ -30,6 +31,9 @@ const visibleItems = computed(() =>
 )
 
 onMounted(() => store.load())
+
+// AI 对话调工具、或其它页面改了待办时，自动拉取最新数据
+useLiveReload('todo', () => store.load())
 
 async function add() {
   const v = text.value.trim()

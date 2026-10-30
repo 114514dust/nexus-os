@@ -2,6 +2,8 @@ package com.nexus.note;
 
 import com.nexus.common.ApiException;
 import com.nexus.common.ErrorCode;
+import com.nexus.event.ChangeDomain;
+import com.nexus.event.ChangeEventNotifier;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
@@ -18,6 +20,7 @@ import java.util.List;
 public class NoteService {
 
     private final NoteRepository noteRepository;
+    private final ChangeEventNotifier notifier;
 
     @Transactional(readOnly = true)
     public List<Note> list() {
@@ -30,7 +33,9 @@ public class NoteService {
         note.setContent(req.getContent());
         note.setCreatedAt(LocalDateTime.now());
         note.setUpdatedAt(LocalDateTime.now());
-        return noteRepository.save(note);
+        Note saved = noteRepository.save(note);
+        notifier.notify(ChangeDomain.NOTE);
+        return saved;
     }
 
     @Transactional
@@ -40,13 +45,16 @@ public class NoteService {
             note.setContent(req.getContent());
         }
         note.setUpdatedAt(LocalDateTime.now());
-        return noteRepository.save(note);
+        Note saved = noteRepository.save(note);
+        notifier.notify(ChangeDomain.NOTE);
+        return saved;
     }
 
     @Transactional
     public void delete(Long id) {
         Note note = getOrThrow(id);
         noteRepository.delete(note);
+        notifier.notify(ChangeDomain.NOTE);
     }
 
     private Note getOrThrow(Long id) {
