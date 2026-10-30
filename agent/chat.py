@@ -25,6 +25,8 @@ class ChatState(TypedDict):
     tool_input: Dict[str, Any]
     tool_result: str
     reply: str
+    # respond 节点只「组装」待生成的 messages，真正逐字生成交给外层流式通道
+    respond_messages: List[Dict[str, str]]
     llm_config: Optional[Dict[str, Any]]
 
 
@@ -53,25 +55,48 @@ def dispatch_node(state: ChatState) -> Dict[str, Any]:
 
 
 def respond_node(state: ChatState) -> Dict[str, Any]:
-    """生成回复：把工具结果（或纯聊天）组织成自然语言。"""
+    """组装回复所需的 messages —— 不在这里生成文本。
+
+    为什么要拆：LangGraph 图擅长确定性编排（路由、工具分发），而 token 级流式
+    需要把「生成过程」交给 HTTP 层逐块推送。所以节点只负责决定「该说什么」，
+    由 app.py 的 SSE 端点调用 llm.chat_stream() 逐字产出。
+    图结构完全不变，同时获得流式体验。
+
+    例外：无 LLM 且有工具结果时，工具结果本身就是最终回复，直接给 reply，
+    不必再走生成（respond_messages 留空即表示「无需生成」）。
+    """
     history = state.get("history") or []
     messages = list(history) + [{"role": "user", "content": state["message"]}]
 
     if state.get("tool_result"):
-        # 有工具结果：让 LLM 把执行结果转述给用户（无 LLM 则原样返回结果文本）
         if llm._llm_available(state.get("llm_config")):
+            # 有工具结果：让 LLM 把执行结果转述给用户
             follow = (
                 "你刚替用户执行了工作台操作/查询，结果如下。请用简洁的中文转述结果，"
                 "必要时给出下一步建议，不要编造结果中没有的信息。\n\n"
                 f"工具执行结果：\n{state['tool_result']}"
             )
-            reply = llm.chat(messages + [{"role": "user", "content": follow}], state.get("llm_config"))
-        else:
-            reply = f"已执行「{state['intent']}」：\n\n{state['tool_result']}"
-    else:
-        reply = llm.chat(messages, state.get("llm_config"))
+            return {"respond_messages": messages + [{"role": "user", "content": follow}]}
+        # 无 LLM：直接返回结构化结果文本
+        return {
+            "reply": f"已执行「{state['intent']}」：\n\n{state['tool_result']}",
+            "respond_messages": [],
+        }
 
-    return {"reply": reply}
+    return {"respond_messages": messages}
+
+
+def run_chat(state: ChatState) -> Dict[str, Any]:
+    """执行图并补齐最终回复（非流式路径用，如 POST /chat）。
+
+    流式路径不走这里——它直接 invoke 图拿 respond_messages，再逐块生成。
+    """
+    result = compiled_chat_graph.invoke(state)
+    if result.get("respond_messages"):
+        result["reply"] = llm.chat(result["respond_messages"], result.get("llm_config"))
+    elif not result.get("reply"):
+        result["reply"] = ""
+    return result
 
 
 def _route_after_classify(state: ChatState) -> str:

@@ -9,13 +9,16 @@
 """
 from __future__ import annotations
 
+import json
 from typing import List, Optional
 
 from fastapi import FastAPI
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 import config
-from chat import compiled_chat_graph
+import llm
+from chat import compiled_chat_graph, run_chat
 from graph import compiled_graph
 
 app = FastAPI(title="Nexus Agent", version="0.2.0")
@@ -112,10 +115,69 @@ def chat(req: ChatRequest) -> ChatResponse:
         "tool_input": {},
         "tool_result": "",
         "reply": "",
+        "respond_messages": [],
         "llm_config": llm_config,
     }
-    result = compiled_chat_graph.invoke(state)
+    result = run_chat(state)
     return ChatResponse(reply=result["reply"], intent=result["intent"])
+
+
+def _sse(payload: dict) -> str:
+    """构造一条 SSE 消息（ensure_ascii=False 保证中文不被转义成 \\uXXXX）。"""
+    return f"data: {json.dumps(payload, ensure_ascii=False)}\n\n"
+
+
+def _chat_events(state: dict, llm_config):
+    """SSE 事件流：intent（意图） -> delta*（增量文本） -> done（完整回复）。
+
+    图只跑编排部分（classify/dispatch/组装 messages），文本生成在这里逐块产出，
+    这样前端能拿到 token 级的流式效果，而图结构保持确定性。
+    """
+    try:
+        result = compiled_chat_graph.invoke(state)
+        intent = result.get("intent", "chat")
+        yield _sse({"type": "intent", "intent": intent})
+
+        if result.get("respond_messages"):
+            parts: List[str] = []
+            for delta in llm.chat_stream(result["respond_messages"], llm_config):
+                parts.append(delta)
+                yield _sse({"type": "delta", "content": delta})
+            reply = "".join(parts)
+        else:
+            # 无 LLM 且工具结果即最终回复：切块产出，保持前端渲染逻辑一致
+            reply = result.get("reply", "")
+            for piece in llm._chunk_text(reply):
+                yield _sse({"type": "delta", "content": piece})
+
+        yield _sse({"type": "done", "reply": reply, "intent": intent})
+    except Exception as e:  # noqa: BLE001 —— 流已开始，只能以事件形式回报错误
+        yield _sse({"type": "error", "message": str(e)})
+
+
+@app.post("/chat/stream")
+def chat_stream(req: ChatRequest) -> StreamingResponse:
+    """流式对话（SSE）。事件类型：intent / delta / done / error。"""
+    llm_config = req.llm_config.model_dump() if req.llm_config else None
+    state = {
+        "message": req.message,
+        "history": [{"role": m.role, "content": m.content} for m in req.history],
+        "intent": "chat",
+        "tool_input": {},
+        "tool_result": "",
+        "reply": "",
+        "respond_messages": [],
+        "llm_config": llm_config,
+    }
+    return StreamingResponse(
+        _chat_events(state, llm_config),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",  # 关闭反向代理缓冲，否则流会被攒成一整块
+        },
+    )
 
 
 if __name__ == "__main__":

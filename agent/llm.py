@@ -10,6 +10,7 @@
 from __future__ import annotations
 
 import json
+import time
 from typing import Any, Dict, List, Optional
 
 import httpx
@@ -115,6 +116,7 @@ def _llm_available(llm_config=None) -> bool:
     return config.llm_enabled()
 
 
+
 def classify(message: str, tool_specs: str, llm_config=None, history: Optional[List[Dict[str, str]]] = None) -> Dict[str, Any]:
     """意图识别：把用户消息归为「某工具 + 参数」或「纯闲聊」。
 
@@ -199,14 +201,96 @@ def _rule_based_classify(message: str, history: Optional[List[Dict[str, str]]] =
     return {"intent": "chat", "params": {}}
 
 
-def chat(messages: List[Dict[str, str]], llm_config=None) -> str:
-    """多轮对话回复。messages 形如 [{"role":"user"/"assistant","content":...}]。"""
-    if _llm_available(llm_config):
-        full = [{"role": "system", "content": CHAT_SYSTEM}] + messages
-        return _call_chat(full, llm_config)
+def _fallback_chat(messages: List[Dict[str, str]]) -> str:
+    """无 LLM 时的降级回复文本（非流式与流式共用，保证两种路径文案一致）。"""
     last = messages[-1]["content"] if messages else ""
     return (
         "（当前未配置大模型，我暂时只能做关键词级的简单响应。"
         "在前端「设置」里配置 API Key 后，我就能真正理解并操作你的工作台。）\n\n"
         f"你刚才说：{last}"
     )
+
+
+def chat(messages: List[Dict[str, str]], llm_config=None) -> str:
+    """多轮对话回复。messages 形如 [{"role":"user"/"assistant","content":...}]。"""
+    if _llm_available(llm_config):
+        full = [{"role": "system", "content": CHAT_SYSTEM}] + messages
+        return _call_chat(full, llm_config)
+    return _fallback_chat(messages)
+
+
+# ---------------------------------------------------------------------------
+# 流式输出（供 SSE 端点使用）
+# ---------------------------------------------------------------------------
+
+# 规则降级文本的切块大小与节奏（模拟打字机，纯观感，不影响语义）
+_FALLBACK_CHUNK = 12
+_FALLBACK_DELAY = 0.015
+
+
+def _chunk_text(text: str, size: int = _FALLBACK_CHUNK, delay: float = _FALLBACK_DELAY):
+    """把整段文本切成小块逐块产出，用于无 LLM 时的"伪流式"（观感一致）。"""
+    for i in range(0, len(text), size):
+        yield text[i : i + size]
+        if delay:
+            time.sleep(delay)
+
+
+def _call_chat_stream(messages: List[Dict[str, str]], llm_config=None, temperature: float = 0.3):
+    """流式调用 OpenAI 兼容接口（stream=true），逐块产出 delta 文本。
+
+    解析的是标准 SSE 响应：
+        data: {"choices":[{"delta":{"content":"你"}}]}
+        data: [DONE]
+    任何单行解析失败都跳过而不是中断——流式场景下宁可少一块，也不要整体失败。
+    """
+    cfg = llm_config or {}
+    base = (cfg.get("baseUrl") or config.LLM_BASE_URL).rstrip("/")
+    url = base + "/chat/completions"
+    api_key = cfg.get("apiKey") or config.LLM_API_KEY
+    model = cfg.get("model") or config.LLM_MODEL
+
+    payload = {
+        "model": model,
+        "messages": messages,
+        "temperature": temperature,
+        "stream": True,
+    }
+    headers = {"Authorization": f"Bearer {api_key}"}
+
+    with httpx.Client(timeout=httpx.Timeout(180.0, connect=10.0)) as client:
+        with client.stream("POST", url, json=payload, headers=headers) as resp:
+            resp.raise_for_status()
+            for raw in resp.iter_lines():
+                if not raw:
+                    continue
+                line = raw.strip()
+                if not line.startswith("data:"):
+                    continue
+                data = line[5:].strip()
+                if data == "[DONE]":
+                    break
+                try:
+                    obj = json.loads(data)
+                except json.JSONDecodeError:
+                    continue
+                choices = obj.get("choices") or []
+                if not choices:
+                    continue
+                delta = choices[0].get("delta") or {}
+                piece = delta.get("content")
+                if piece:
+                    yield piece
+
+
+def chat_stream(messages: List[Dict[str, str]], llm_config=None):
+    """流式多轮对话：逐块产出回复文本。
+
+    - 有 LLM：真实 token 流；
+    - 无 LLM：把规则降级文本切块产出，保证前端流式渲染逻辑始终一致。
+    """
+    if _llm_available(llm_config):
+        full = [{"role": "system", "content": CHAT_SYSTEM}] + messages
+        yield from _call_chat_stream(full, llm_config)
+        return
+    yield from _chunk_text(_fallback_chat(messages))

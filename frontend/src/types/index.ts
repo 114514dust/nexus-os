@@ -114,6 +114,8 @@ export interface ChatMessage {
   createdAt?: string
   /** 仅前端本地标记：该条为发送失败的提示，可重试 */
   error?: boolean
+  /** 仅前端本地标记：该条正在流式接收中 */
+  streaming?: boolean
 }
 
 export interface ChatReply {
