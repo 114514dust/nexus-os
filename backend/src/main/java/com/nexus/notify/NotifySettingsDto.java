@@ -30,4 +30,7 @@ public class NotifySettingsDto {
 
     /** 求职面试提醒（今日/明日面试、投递长期无进展） */
     private boolean onInterview;
+
+    /** 待办到期提醒（今天到期、已逾期） */
+    private boolean onTodo;
 }

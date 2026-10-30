@@ -8,6 +8,7 @@ import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
 import javax.persistence.Table;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 /**
@@ -27,6 +28,13 @@ public class Todo {
 
     @Column(nullable = false)
     private boolean done;
+
+    /**
+     * 到期日（可空）。空表示「没有明确期限」，这类待办不会被到期提醒骚扰。
+     * 只有填了日期的待办才参与排序与提醒。
+     */
+    @Column(name = "due_date")
+    private LocalDate dueDate;
 
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;

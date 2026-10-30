@@ -2678,3 +2678,214 @@ button {
   font-size: 12px;
   color: #f0a13c;
 }
+
+/* 视图切换：列表 / 看板 */
+.job-view-btn {
+  flex-shrink: 0;
+  font-size: 12px;
+  padding: 4px 9px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text-2);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+}
+
+.job-view-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* 看板：按阶段分列，横向滚动 */
+.job-board {
+  flex: 1;
+  min-height: 140px;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  overflow: auto;
+  padding-bottom: 4px;
+}
+
+.job-col {
+  flex: 0 0 158px;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 6px;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.job-col.over {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 8%, var(--surface-2));
+}
+
+.job-col-head {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 2px 6px;
+}
+
+/* 阶段标签在列表里靠右，在列头里要靠左 */
+.job-col-head .job-stage {
+  margin-left: 0;
+}
+
+.job-col-head b {
+  margin-left: auto;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-2);
+}
+
+.job-col-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.job-col-empty {
+  border: 1px dashed var(--border);
+  border-radius: 6px;
+  padding: 10px 4px;
+  text-align: center;
+  font-size: 11px;
+  color: var(--text-2);
+}
+
+.job-mini {
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--border);
+  border-radius: 6px;
+  padding: 5px 6px;
+  background: var(--surface);
+  cursor: pointer;
+  transition: background 0.15s, opacity 0.15s;
+}
+
+.job-mini:hover {
+  background: var(--surface-2);
+}
+
+.job-mini.dragging {
+  opacity: 0.45;
+}
+
+.job-mini.starred {
+  background: color-mix(in srgb, var(--accent) 7%, var(--surface));
+}
+
+.job-mini.wish {
+  border-left-color: #8b93a7;
+}
+
+.job-mini.applied {
+  border-left-color: var(--accent);
+}
+
+.job-mini.written {
+  border-left-color: #a78bfa;
+}
+
+.job-mini.interview1,
+.job-mini.interview2,
+.job-mini.hr {
+  border-left-color: #f0a13c;
+}
+
+.job-mini.offer {
+  border-left-color: #4caf7d;
+}
+
+.job-mini.accepted {
+  border-left-color: #2fb3a0;
+}
+
+.job-mini.rejected {
+  border-left-color: var(--danger);
+  opacity: 0.72;
+}
+
+.job-mini-top {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.job-mini-company {
+  min-width: 0;
+  font-size: 12px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.job-mini-role {
+  margin-top: 1px;
+  font-size: 11px;
+  color: var(--text-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.job-mini-foot {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+  font-size: 11px;
+}
+
+.job-mini-due {
+  margin-left: auto;
+  color: var(--text-2);
+  white-space: nowrap;
+}
+
+.job-mini-due.today,
+.job-mini-due.tomorrow {
+  color: #f0a13c;
+}
+
+.job-mini-due.soon {
+  color: #e6c07b;
+}
+
+.job-mini-due.overdue {
+  color: var(--danger);
+}
+
+.job-mini .job-star {
+  font-size: 12px;
+}
+
+/* 时间线单条删除：默认淡显，悬停变红，避免误触又不藏起来 */
+.job-event-del {
+  flex-shrink: 0;
+  border: none;
+  background: none;
+  padding: 0 2px;
+  font-size: 14px;
+  line-height: 1;
+  color: var(--text-2);
+  opacity: 0.35;
+  cursor: pointer;
+  transition: opacity 0.15s, color 0.15s;
+}
+
+.job-events li:hover .job-event-del {
+  opacity: 1;
+}
+
+.job-event-del:hover {
+  color: var(--danger);
+}

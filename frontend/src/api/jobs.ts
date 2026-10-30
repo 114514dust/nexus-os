@@ -60,6 +60,11 @@ export function addJobEvent(id: number, note: string) {
   return request<JobDetail>({ method: 'POST', url: `/jobs/${id}/events`, data: { note } })
 }
 
+/** 删除时间线里的一条记录（不影响当前阶段） */
+export function deleteJobEvent(id: number, eventId: number) {
+  return request<JobDetail>({ method: 'DELETE', url: `/jobs/${id}/events/${eventId}` })
+}
+
 export function deleteJob(id: number) {
   return request<void>({ method: 'DELETE', url: `/jobs/${id}` })
 }

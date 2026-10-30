@@ -31,6 +31,8 @@ export interface Todo {
   id: number
   content: string
   done: boolean
+  /** yyyy-MM-dd，null 表示没有期限 */
+  dueDate: string | null
   createdAt: string
 }
 
@@ -166,6 +168,8 @@ export interface NotifySettings {
   onDigest: boolean
   /** 求职面试提醒 */
   onInterview: boolean
+  /** 待办到期提醒 */
+  onTodo: boolean
 }
 
 export interface Page {

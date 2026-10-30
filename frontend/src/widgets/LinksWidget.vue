@@ -30,7 +30,7 @@
         <div v-for="l in store.items" :key="l.id" class="link-item">
           <a v-if="openInNewTab" :href="l.url" target="_blank" rel="noopener">{{ l.title }}</a>
           <button v-else class="link-open" :title="l.url" @click="openEmbed(l)">{{ l.title }}</button>
-          <button class="del" title="删除" @click="store.remove(l.id)">×</button>
+          <button class="del" title="删除" @click="remove(l)">×</button>
         </div>
         <div v-if="store.items.length === 0" class="empty">暂无链接</div>
       </div>
@@ -81,5 +81,15 @@ function openEmbed(l: Link) {
 
 function closeEmbed() {
   embed.value = null
+}
+
+async function remove(l: Link) {
+  try {
+    await store.remove(l.id)
+    // 正在内嵌看的那条被删掉时，退回列表，不留一个指向已删链接的 iframe
+    if (embed.value?.id === l.id) embed.value = null
+  } catch (err) {
+    toastError('删除链接失败：' + friendlyError(err))
+  }
 }
 </script>

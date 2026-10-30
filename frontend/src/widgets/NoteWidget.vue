@@ -10,7 +10,7 @@
           @input="onEdit(n, ($event.target as HTMLTextAreaElement).value)"
           @blur="onBlur(n)"
         ></textarea>
-        <button class="del" title="删除" @click="store.remove(n.id)">×</button>
+        <button class="del" title="删除" @click="remove(n)">×</button>
       </div>
       <div v-if="store.items.length === 0" class="empty">点击「新建便签」开始记录</div>
     </div>
@@ -80,6 +80,15 @@ function onBlur(note: Note) {
     store.remove(note.id).catch(() => {
       /* 清理失败不打扰用户，下次保存时会再次落库 */
     })
+  }
+}
+
+async function remove(note: Note) {
+  try {
+    await store.remove(note.id)
+    blankDrafts.delete(note.id)
+  } catch (err) {
+    toastError('删除便签失败：' + friendlyError(err))
   }
 }
 </script>

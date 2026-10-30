@@ -25,16 +25,22 @@
         <option value="all">全部类型</option>
         <option v-for="c in CATEGORIES" :key="c.key" :value="c.key">{{ c.label }}</option>
       </select>
-      <select v-model="scope" class="job-select" title="显示范围">
-        <option value="active">进行中</option>
-        <option value="closed">已结束</option>
-        <option value="all">全部</option>
-      </select>
-      <select v-model="sort" class="job-select" title="排序">
-        <option value="recent">最近更新</option>
-        <option value="due">面试临近</option>
-        <option value="company">按公司</option>
-      </select>
+      <!-- 看板模式自带「按阶段分列」，范围与排序在那里没有意义，收起来避免误操作 -->
+      <template v-if="view === 'list'">
+        <select v-model="scope" class="job-select" title="显示范围">
+          <option value="active">进行中</option>
+          <option value="closed">已结束</option>
+          <option value="all">全部</option>
+        </select>
+        <select v-model="sort" class="job-select" title="排序">
+          <option value="recent">最近更新</option>
+          <option value="due">面试临近</option>
+          <option value="company">按公司</option>
+        </select>
+      </template>
+      <button class="job-view-btn" :title="view === 'board' ? '切回列表' : '切到看板（拖拽卡片改阶段）'" @click="toggleView">
+        {{ view === 'board' ? '▤ 列表' : '▦ 看板' }}
+      </button>
       <button class="btn job-add-btn" @click="toggleAdd">＋ 投递</button>
     </div>
 
@@ -48,7 +54,57 @@
       <button class="btn primary" :disabled="!canAdd" @click="add">添加</button>
     </div>
 
-    <div class="job-list">
+    <!-- 看板视图：按阶段分列，拖一张卡片到别的列就等于改阶段 -->
+    <div v-if="view === 'board'" class="job-board">
+      <section
+        v-for="col in boardColumns"
+        :key="col.key"
+        class="job-col"
+        :class="{ over: dragOverStage === col.key }"
+        @dragover.prevent="dragOverStage = col.key"
+        @dragleave="onDragLeave($event, col.key)"
+        @drop.prevent="onDrop(col.key)"
+      >
+        <header class="job-col-head">
+          <span class="job-stage" :class="col.key">{{ col.label }}</span>
+          <b>{{ col.items.length }}</b>
+        </header>
+        <div class="job-col-body">
+          <article
+            v-for="job in col.items"
+            :key="job.id"
+            class="job-mini"
+            :class="[job.stage, { starred: job.starred, dragging: draggingId === job.id }]"
+            draggable="true"
+            @dragstart="onDragStart(job)"
+            @dragend="onDragEnd"
+            @click="openDetail(job)"
+          >
+            <div class="job-mini-top">
+              <button
+                class="job-star"
+                :class="{ on: job.starred }"
+                :title="job.starred ? '取消重点' : '标记为重点'"
+                @click.stop="toggleStar(job)"
+              >
+                {{ job.starred ? '★' : '☆' }}
+              </button>
+              <span class="job-mini-company">{{ job.company }}</span>
+            </div>
+            <div v-if="job.jobTitle" class="job-mini-role">{{ job.jobTitle }}</div>
+            <div class="job-mini-foot">
+              <span class="job-cat" :class="job.category">{{ catLabel(job.category) }}</span>
+              <span v-if="job.nextAt" class="job-mini-due" :class="dueClass(job)">
+                {{ fmtDate(job.nextAt) }}
+              </span>
+            </div>
+          </article>
+          <div v-if="col.items.length === 0" class="job-col-empty">拖到这里</div>
+        </div>
+      </section>
+    </div>
+
+    <div v-else class="job-list">
       <article
         v-for="job in store.items"
         :key="job.id"
@@ -215,6 +271,7 @@
                   <div class="job-event-main">
                     <div class="job-event-head">
                       <span class="job-event-stage">{{ stageLabel(e.stage) }}</span>
+                      <button class="job-event-del" title="删除这条进展记录" @click="removeEvent(e)">×</button>
                       <span class="job-event-time">{{ fmtTime(e.occurredAt) }}</span>
                     </div>
                     <div v-if="e.note" class="job-event-note">{{ e.note }}</div>
@@ -245,7 +302,7 @@ import { useJobStore } from '@/stores/jobs'
 import { useLiveReload } from '@/composables/useLiveReload'
 import { renderMarkdown } from '@/utils/markdown'
 import { toastError, toastSuccess, friendlyError } from '@/utils/toast'
-import type { JobApplication, JobCategory, JobDetail, JobStage } from '@/types'
+import type { JobApplication, JobCategory, JobDetail, JobEvent, JobStage } from '@/types'
 
 defineProps<{ config?: Record<string, any> }>()
 
@@ -293,6 +350,12 @@ const category = ref('all')
 const scope = ref<'active' | 'closed' | 'all'>('active')
 const sort = ref<'recent' | 'due' | 'company'>('recent')
 
+/** 列表 / 看板两种视图，选择记在本地，下次打开还是上次的样子 */
+const VIEW_KEY = 'nexus.job.view'
+const view = ref<'list' | 'board'>(
+  localStorage.getItem(VIEW_KEY) === 'board' ? 'board' : 'list'
+)
+
 const showAdd = ref(false)
 const newCompany = ref('')
 const newTitle = ref('')
@@ -328,15 +391,77 @@ watch(keyword, () => {
 })
 watch([category, scope, sort], () => reload())
 
+// 看板要看到所有阶段（含已入职 / 未通过），所以切换视图时按视图决定查询范围
+watch(view, (v) => {
+  localStorage.setItem(VIEW_KEY, v)
+  reload()
+})
+
+function toggleView() {
+  view.value = view.value === 'list' ? 'board' : 'list'
+}
+
 function reload() {
   store
     .load({
       keyword: keyword.value.trim() || undefined,
       category: category.value,
-      scope: scope.value,
+      scope: view.value === 'board' ? 'all' : scope.value,
       sort: sort.value
     })
     .catch((e) => console.warn('[job] 加载失败', e))
+}
+
+// ---- 看板 ----
+
+/** 阶段列：线性链 + 旁路终态「未通过」，与详情里的阶段条一一对应 */
+const boardColumns = computed(() =>
+  [...STAGES, { key: 'rejected' as JobStage, label: '未通过' }].map((s) => ({
+    key: s.key,
+    label: s.label,
+    items: store.items.filter((j) => j.stage === s.key)
+  }))
+)
+
+const draggingId = ref<number | null>(null)
+const dragOverStage = ref<JobStage | null>(null)
+
+function onDragStart(job: JobApplication) {
+  draggingId.value = job.id
+}
+
+function onDragEnd() {
+  draggingId.value = null
+  dragOverStage.value = null
+}
+
+/** dragleave 会在子元素之间来回触发，只有真正离开整列才清高亮，否则一直闪 */
+function onDragLeave(e: DragEvent, key: JobStage) {
+  const to = e.relatedTarget as Node | null
+  const el = e.currentTarget as HTMLElement
+  if (to && el.contains(to)) return
+  if (dragOverStage.value === key) dragOverStage.value = null
+}
+
+function onDrop(stage: JobStage) {
+  const id = draggingId.value
+  dragOverStage.value = null
+  draggingId.value = null
+  if (id == null) return
+  const job = store.items.find((j) => j.id === id)
+  if (!job || job.stage === stage) return
+  moveTo(job, stage)
+}
+
+/** 拖拽改阶段：拖过去就落库，不做二次确认 —— 拖错了再拖回来就是 */
+async function moveTo(job: JobApplication, stage: JobStage) {
+  try {
+    await store.update(job.id, { stage })
+    toastSuccess(`「${job.company}」→ ${stageLabel(stage)}`)
+  } catch (e) {
+    toastError('更新进度失败：' + friendlyError(e))
+    reload()
+  }
 }
 
 // ---- 阶段 / 类型文案 ----
@@ -559,6 +684,21 @@ async function submitNote() {
     noteInput.value = ''
   } catch (e) {
     toastError('记录失败：' + friendlyError(e))
+  }
+}
+
+/**
+ * 删除一条进展记录。
+ * 只删这一条，不动当前阶段 —— 阶段是投递本身的状态，历史记录是另一回事。
+ */
+async function removeEvent(e: JobEvent) {
+  if (!draft.value) return
+  const desc = e.note ? e.note.slice(0, 24) + (e.note.length > 24 ? '…' : '') : stageLabel(e.stage)
+  if (!window.confirm(`删除这条进展记录吗？\n${fmtTime(e.occurredAt)} · ${desc}`)) return
+  try {
+    detail.value = await store.removeNote(draft.value.id, e.id)
+  } catch (err) {
+    toastError('删除记录失败：' + friendlyError(err))
   }
 }
 

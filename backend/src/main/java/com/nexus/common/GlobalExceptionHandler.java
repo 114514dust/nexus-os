@@ -3,6 +3,7 @@ package com.nexus.common;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -26,6 +27,17 @@ public class GlobalExceptionHandler {
         FieldError fe = e.getBindingResult().getFieldError();
         String msg = fe != null ? fe.getField() + " " + fe.getDefaultMessage() : "参数校验失败";
         return ResponseEntity.badRequest().body(ApiResponse.error(400, msg));
+    }
+
+    /**
+     * 请求体读不出来（JSON 语法错、日期格式不对等）。
+     * 这本质是客户端的问题，不能落到 500 —— 否则用户看到「服务器内部错误」，
+     * 完全不知道是自己把日期写成了 2026/11/02。
+     */
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ApiResponse<Void>> handleUnreadable(HttpMessageNotReadableException e) {
+        return ResponseEntity.badRequest()
+                .body(ApiResponse.error(400, "请求参数格式不正确（日期请用 yyyy-MM-dd）"));
     }
 
     @ExceptionHandler(Exception.class)

@@ -39,6 +39,9 @@ nexus:
   job:
     # 求职面试提醒 cron（默认每天 9:00 检查今天/明天的面试与长期无进展的投递）
     reminder-cron: ${NEXUS_JOB_REMINDER_CRON:0 0 9 * * *}
+  todo:
+    # 待办到期提醒 cron（默认每天 8:30，早于求职提醒，让「今天的待办」排在「今天的面试」前面）
+    reminder-cron: ${NEXUS_TODO_REMINDER_CRON:0 30 8 * * *}
 
 management:
   endpoints:

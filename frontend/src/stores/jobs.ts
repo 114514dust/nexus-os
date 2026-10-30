@@ -7,6 +7,7 @@ import {
   updateJob,
   advanceJob,
   addJobEvent,
+  deleteJobEvent,
   deleteJob,
   type JobQuery
 } from '@/api/jobs'
@@ -75,6 +76,13 @@ export const useJobStore = defineStore('jobs', {
 
     async addNote(id: number, note: string): Promise<JobDetail> {
       const detail = await addJobEvent(id, note)
+      const idx = this.items.findIndex((i) => i.id === id)
+      if (idx >= 0) this.items[idx] = detail.job
+      return detail
+    },
+
+    async removeNote(id: number, eventId: number): Promise<JobDetail> {
+      const detail = await deleteJobEvent(id, eventId)
       const idx = this.items.findIndex((i) => i.id === id)
       if (idx >= 0) this.items[idx] = detail.job
       return detail

@@ -35,6 +35,9 @@ public class NotifyService {
     /** 求职面试提醒 */
     public static final String EVENT_INTERVIEW = "interview";
 
+    /** 待办到期提醒 */
+    public static final String EVENT_TODO = "todo";
+
     /** 同类型事件的去重窗口（毫秒） */
     private static final long DEDUP_WINDOW_MS = 60_000L;
 
@@ -109,6 +112,9 @@ public class NotifyService {
         }
         if (EVENT_INTERVIEW.equals(event)) {
             return cfg.isOnInterview();
+        }
+        if (EVENT_TODO.equals(event)) {
+            return cfg.isOnTodo();
         }
         return false;
     }

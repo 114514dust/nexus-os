@@ -71,6 +71,12 @@ public class JobApplicationController {
         return ApiResponse.ok(service.addNote(id, req.getNote()));
     }
 
+    /** 删除时间线里的一条进展记录（不影响当前阶段） */
+    @DeleteMapping("/{id}/events/{eventId}")
+    public ApiResponse<JobDetail> deleteNote(@PathVariable Long id, @PathVariable Long eventId) {
+        return ApiResponse.ok(service.deleteEvent(id, eventId));
+    }
+
     @DeleteMapping("/{id}")
     public ApiResponse<Void> delete(@PathVariable Long id) {
         service.delete(id);

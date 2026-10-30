@@ -13,6 +13,7 @@ Python 自身无状态、不落库——与每日总结链路的职责边界保�
 """
 from __future__ import annotations
 
+import datetime
 from typing import Any, Dict, List
 
 import httpx
@@ -68,7 +69,7 @@ def _tail(items: list, limit: int = 20) -> str:
 # ---- 待办 ----
 class TodoListTool(Tool):
     name = "todo_list"
-    description = "列出当前所有待办事项"
+    description = "列出当前所有待办事项（含到期日与是否逾期）"
     params = "{}"
 
     def call(self, params, client):
@@ -76,22 +77,37 @@ class TodoListTool(Tool):
         lines = []
         for it in items[:20]:
             mark = "✅已完成" if it.get("done") else "⬜未完成"
-            lines.append(f"#{it.get('id')} [{mark}] {it.get('content', '')}")
+            due = it.get("dueDate")
+            due_txt = f"（到期 {due}{'，已逾期' if not it.get('done') and _is_overdue(due) else ''}）" if due else ""
+            lines.append(f"#{it.get('id')} [{mark}] {it.get('content', '')}{due_txt}")
         out = "\n".join(lines) if lines else "（当前没有待办）"
         return "待办列表：\n" + out + _tail(items)
 
 
+def _is_overdue(due: str) -> bool:
+    """dueDate 是 yyyy-MM-dd，只比较日期。"""
+    try:
+        return due < datetime.date.today().isoformat()
+    except Exception:
+        return False
+
+
 class TodoAddTool(Tool):
     name = "todo_add"
-    description = "新增一条待办事项"
-    params = '{"content": "待办内容"}'
+    description = "新增一条待办事项；dueDate 可选（yyyy-MM-dd），填了就参与到期提醒"
+    params = '{"content": "待办内容", "dueDate": "2026-11-02"}'
 
     def call(self, params, client):
         content = str(params.get("content", "")).strip()
         if not content:
             return "错误：缺少待办内容 content"
-        created = client.post("/api/todos", {"content": content})
-        return f"已添加待办 #{created['id']}：「{created['content']}」"
+        body = {"content": content}
+        due = params.get("dueDate")
+        if due:
+            body["dueDate"] = str(due).strip()
+        created = client.post("/api/todos", body)
+        suffix = f"，到期日 {created['dueDate']}" if created.get("dueDate") else ""
+        return f"已添加待办 #{created['id']}：「{created['content']}」{suffix}"
 
 
 class TodoDoneTool(Tool):

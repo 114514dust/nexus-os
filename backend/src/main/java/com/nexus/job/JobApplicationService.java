@@ -234,6 +234,27 @@ public class JobApplicationService {
         return new JobDetail(job, eventRepository.findByJobIdOrderByOccurredAtDesc(id));
     }
 
+    /**
+     * 删除时间线里的一条记录。
+     *
+     * 阶段变化自动落的记录也允许删 —— 用户改错阶段（比如误点了「已入职」）后，
+     * 那条记录留在时间线上就是错的，不给删反而更别扭。
+     * 但**只删记录、不动当前阶段**：阶段是投递本身的状态，与历史记录是两回事。
+     */
+    @Transactional
+    public JobDetail deleteEvent(Long jobId, Long eventId) {
+        JobApplication job = getOrThrow(jobId);
+        JobEvent event = eventRepository.findById(eventId)
+                .orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND, "进展记录不存在"));
+        // 路径里的 jobId 必须和记录真实归属一致，否则可以借任意 jobId 删掉别人的记录
+        if (!jobId.equals(event.getJobId())) {
+            throw new ApiException(ErrorCode.BAD_REQUEST, "这条进展记录不属于该投递");
+        }
+        eventRepository.delete(event);
+        notifier.notify(ChangeDomain.JOB);
+        return new JobDetail(job, eventRepository.findByJobIdOrderByOccurredAtDesc(jobId));
+    }
+
     @Transactional
     public void delete(Long id) {
         JobApplication job = getOrThrow(id);

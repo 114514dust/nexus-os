@@ -9,7 +9,8 @@ const emptySettings: NotifySettings = {
   secret: '',
   onFeed: true,
   onDigest: true,
-  onInterview: true
+  onInterview: true,
+  onTodo: true
 }
 
 export const useNotifyStore = defineStore('notify', {
