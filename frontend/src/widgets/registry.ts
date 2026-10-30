@@ -159,4 +159,14 @@ export function registerBuiltinWidgets() {
     configSchema: [{ key: 'title', label: '标题', type: 'text', default: '校招岗位' }],
     component: defineAsyncComponent(() => import('./JobBoardWidget.vue'))
   })
+  registerWidget({
+    type: 'mail',
+    name: '邮箱消息',
+    description: '订阅 QQ 邮箱收信，自动挑出面试/笔试等重要邮件并转成待办',
+    icon: 'mail',
+    defaultW: 6,
+    defaultH: 10,
+    configSchema: [{ key: 'title', label: '标题', type: 'text', default: '邮箱消息' }],
+    component: defineAsyncComponent(() => import('./MailWidget.vue'))
+  })
 }

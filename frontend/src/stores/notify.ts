@@ -11,7 +11,8 @@ const emptySettings: NotifySettings = {
   onDigest: true,
   onInterview: true,
   onTodo: true,
-  onPosting: true
+  onPosting: true,
+  onMail: true
 }
 
 export const useNotifyStore = defineStore('notify', {

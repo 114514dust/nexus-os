@@ -45,6 +45,10 @@ nexus:
   posting:
     # 校招岗位抓取 cron（默认每天 7:30，比待办/面试提醒都早）
     cron: ${NEXUS_POSTING_CRON:0 30 7 * * *}
+  mail:
+    # 邮箱收取 cron（默认每 15 分钟。面试/笔试通知有时效，一天一收太慢；
+    # 定时开关本身由页面上的「自动收取」控制，这里只决定检查频率）
+    cron: ${NEXUS_MAIL_CRON:0 */15 * * * *}
 
 management:
   endpoints:

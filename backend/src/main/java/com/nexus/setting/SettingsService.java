@@ -27,6 +27,7 @@ public class SettingsService {
     private static final String KEY_NOTIFY_ON_INTERVIEW = "notify.onInterview";
     private static final String KEY_NOTIFY_ON_TODO = "notify.onTodo";
     private static final String KEY_NOTIFY_ON_POSTING = "notify.onPosting";
+    private static final String KEY_NOTIFY_ON_MAIL = "notify.onMail";
 
     private final SettingRepository settingRepository;
 
@@ -69,6 +70,7 @@ public class SettingsService {
         dto.setOnInterview(Boolean.parseBoolean(getValue(KEY_NOTIFY_ON_INTERVIEW)));
         dto.setOnTodo(Boolean.parseBoolean(getValue(KEY_NOTIFY_ON_TODO)));
         dto.setOnPosting(Boolean.parseBoolean(getValue(KEY_NOTIFY_ON_POSTING)));
+        dto.setOnMail(Boolean.parseBoolean(getValue(KEY_NOTIFY_ON_MAIL)));
         return dto;
     }
 
@@ -90,6 +92,7 @@ public class SettingsService {
         setValue(KEY_NOTIFY_ON_INTERVIEW, String.valueOf(dto.isOnInterview()));
         setValue(KEY_NOTIFY_ON_TODO, String.valueOf(dto.isOnTodo()));
         setValue(KEY_NOTIFY_ON_POSTING, String.valueOf(dto.isOnPosting()));
+        setValue(KEY_NOTIFY_ON_MAIL, String.valueOf(dto.isOnMail()));
         return getNotify();
     }
 

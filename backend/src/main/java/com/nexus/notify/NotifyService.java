@@ -41,6 +41,9 @@ public class NotifyService {
     /** 校招岗位抓到新岗位 */
     public static final String EVENT_POSTING = "posting";
 
+    /** 邮箱收到重要邮件 */
+    public static final String EVENT_MAIL = "mail";
+
     /** 同类型事件的去重窗口（毫秒） */
     private static final long DEDUP_WINDOW_MS = 60_000L;
 
@@ -121,6 +124,9 @@ public class NotifyService {
         }
         if (EVENT_POSTING.equals(event)) {
             return cfg.isOnPosting();
+        }
+        if (EVENT_MAIL.equals(event)) {
+            return cfg.isOnMail();
         }
         return false;
     }

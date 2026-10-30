@@ -9,6 +9,7 @@
 """
 from __future__ import annotations
 
+import datetime
 import json
 import time
 from typing import Any, Dict, List, Optional
@@ -308,3 +309,128 @@ def chat_stream(messages: List[Dict[str, str]], llm_config=None):
         yield from _call_chat_stream(full, llm_config)
         return
     yield from _chunk_text(_fallback_chat(messages))
+
+
+# ---------------------------------------------------------------------------
+# 邮件重要性精判 —— 供 Java 后端在处理「灰区邮件」时调用
+# ---------------------------------------------------------------------------
+
+MAIL_SYSTEM = (
+    "你是 Nexus 个人工作台的邮件助理。用户是一名正在找工作的在校生，"
+    "每天会收到大量通知、营销和招聘平台推送。你的任务是替他判断一封邮件值不值得打扰他。"
+)
+
+MAIL_PROMPT = """今天是 {today}。
+
+发件人：{sender}
+主题：{subject}
+
+正文（截断）：
+{body}
+
+规则引擎的初步判断是 {rule_score} 分，理由：{rule_reason}。
+你可以推翻它，但要有正文依据；拿不准时宁可判「不重要」，因为误报会让他失去对提醒的信任。
+
+判断标准：
+- 重要 = 需要他本人回应/准备/参加，或涉及明确的时间、金额、机会（面试邀约、笔试链接、录用通知、缴费截止、合同签署、行程变更）。
+- 不重要 = 广告营销、平台每日职位推荐、系统维护通知、订阅更新、社群闲聊、已经完成的往来。
+
+如果确实有一件具体的事要他做，就给出 todo：
+- 不超过 20 字，动词开头，带上关键对象与时间（例：10月31日 14:00 参加字节跳动二面）；
+- 没有具体动作时 todo 为 null（不要为了凑数硬编）。
+
+dueDate 只能来自正文里明确写出的日期或相对时间（今天/明天/本周五），换算成 yyyy-MM-dd；
+正文没有明确日期时必须为 null，绝对不要猜测。
+
+只输出一个 JSON 对象，不要任何解释文字：
+{{"important": true, "score": 82, "reason": "面试邀约，需确认时间", "todo": "10月31日 14:00 参加字节跳动二面", "dueDate": "2026-10-31"}}"""
+
+
+def _extract_json_obj(raw: str) -> Optional[Dict[str, Any]]:
+    """从模型输出里抠出第一个 JSON 对象，容忍 ```json 围栏与前后废话。"""
+    if not raw:
+        return None
+    cleaned = raw.strip()
+    if cleaned.startswith("```"):
+        cleaned = cleaned.strip("`")
+        if cleaned[:4].lower() == "json":
+            cleaned = cleaned[4:]
+    start, end = cleaned.find("{"), cleaned.rfind("}")
+    if start < 0 or end <= start:
+        return None
+    try:
+        data = json.loads(cleaned[start : end + 1])
+        return data if isinstance(data, dict) else None
+    except json.JSONDecodeError:
+        return None
+
+
+def _safe_date(value) -> Optional[str]:
+    """只接受合法的 yyyy-MM-dd；模型编出来的日期直接丢掉。"""
+    if not value or not isinstance(value, str):
+        return None
+    text = value.strip()
+    try:
+        datetime.date.fromisoformat(text)
+        return text
+    except ValueError:
+        return None
+
+
+def classify_mail(
+    subject: str,
+    sender: str,
+    body: str,
+    received_at: str = "",
+    rule_score: int = 0,
+    rule_reason: str = "",
+    llm_config=None,
+) -> Dict[str, Any]:
+    """判断一封邮件是否重要，并尽量提炼出一条可执行的待办。
+
+    返回 {"ok": bool, ...}。链接路任何一环不可用时 ok=False，
+    由 Java 侧降级沿用规则判定 —— 这里不抛异常，避免把收信拖死。
+    """
+    if not _llm_available(llm_config):
+        return {"ok": False, "error": "未配置大模型"}
+
+    today = (received_at or "")[:10] or datetime.date.today().isoformat()
+    prompt = MAIL_PROMPT.format(
+        today=today,
+        sender=sender or "（未知）",
+        subject=subject or "（无主题）",
+        body=(body or "")[:2000],
+        rule_score=rule_score,
+        rule_reason=rule_reason or "无",
+    )
+
+    try:
+        raw = _call_chat(
+            [{"role": "system", "content": MAIL_SYSTEM}, {"role": "user", "content": prompt}],
+            llm_config,
+            temperature=0.0,
+        )
+    except Exception as e:  # noqa: BLE001 —— 调用失败要让上层知道，但不能抛出去
+        return {"ok": False, "error": f"模型调用失败：{e}"}
+
+    data = _extract_json_obj(raw)
+    if data is None:
+        return {"ok": False, "error": "模型输出无法解析为 JSON"}
+
+    try:
+        score = int(data.get("score", rule_score))
+    except (TypeError, ValueError):
+        score = rule_score
+
+    todo = data.get("todo")
+    if not isinstance(todo, str) or not todo.strip() or todo.strip().lower() == "null":
+        todo = None
+
+    return {
+        "ok": True,
+        "important": bool(data.get("important")),
+        "score": max(0, min(100, score)),
+        "reason": str(data.get("reason") or "")[:120],
+        "todo": todo.strip() if todo else None,
+        "dueDate": _safe_date(data.get("dueDate")),
+    }

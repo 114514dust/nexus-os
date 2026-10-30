@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 测试期把第三方库的 DEBUG 日志压掉：GreenMail 会把每条 IMAP 协议命令都打出来，
+     几百行噪音会把真正的断言失败原因淹掉 -->
+<configuration>
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%d{HH:mm:ss.SSS} %-5level %logger{36} - %msg%n</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+    </appender>
+
+    <logger name="com.icegreen" level="WARN"/>
+    <logger name="org.hibernate" level="WARN"/>
+    <logger name="com.nexus" level="INFO"/>
+
+    <root level="WARN">
+        <appender-ref ref="CONSOLE"/>
+    </root>
+</configuration>

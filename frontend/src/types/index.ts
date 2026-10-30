@@ -240,6 +240,8 @@ export interface NotifySettings {
   onTodo: boolean
   /** 校招岗位新增推送 */
   onPosting: boolean
+  /** 邮箱收到重要邮件 */
+  onMail: boolean
 }
 
 export interface Page {
@@ -278,4 +280,71 @@ export interface ApiResponse<T> {
   code: number
   message: string
   data: T
+}
+
+// ---- 邮箱消息 ----
+
+export interface MailMessageView {
+  id: number
+  senderName: string
+  senderAddr: string
+  subject: string
+  snippet: string | null
+  /** 仅详情接口返回 */
+  body?: string | null
+  receivedAt: string
+  /** high 自动建待办；medium 只提示；low 默认不显示 */
+  importantLevel: 'high' | 'medium' | 'low'
+  importantScore: number
+  scoreReason: string | null
+  /** rule 纯规则判定；llm 大模型参与过 */
+  verdictBy: 'rule' | 'llm'
+  hasAttachment: boolean
+  read: boolean
+  ignored: boolean
+  /** 已转成的待办 id（待办被删后为 null） */
+  todoId: number | null
+  todoExists: boolean
+  todoContent: string | null
+  todoDueDate: string | null
+}
+
+export interface MailSettings {
+  /** 定时自动收取 */
+  enabled: boolean
+  address: string
+  /** 授权码；回显为 ****xxxx，原样提交表示不修改 */
+  authCode: string
+  imapHost: string
+  imapPort: number
+  ssl: boolean
+  folder: string
+  autoTodo: boolean
+  llmJudge: boolean
+  ignoreSenders: string
+  extraKeywords: string
+  fetchLimit: number
+  lastSyncAt: string
+  configured: boolean
+  lastError: string
+}
+
+export interface MailStats {
+  total: number
+  high: number
+  medium: number
+  toTodo: number
+  lastSyncAt: string
+  lastError: string
+  configured: boolean
+}
+
+export interface MailSyncResult {
+  ok: boolean
+  message: string
+  fetched: number
+  high: number
+  medium: number
+  todos: number
+  highlights: string[]
 }

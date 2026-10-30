@@ -4,6 +4,7 @@
 - GET  /health     健康检查
 - POST /summarize  接收 Java 聚合好的当天数据，走 LangGraph 编排图生成总结
 - POST /chat       基于 Workflow 的 AI 对话（意图识别 -> 工具分发 -> 生成回复）
+- POST /classify_mail  邮件重要性精判（供 Java 收信链路在灰区调用）
 
 服务无状态、不落库：输入当天数据/对话，输出文本，落库由 Java 后端负责。
 """
@@ -103,6 +104,35 @@ class ChatRequest(BaseModel):
 class ChatResponse(BaseModel):
     reply: str
     intent: str
+
+
+class MailClassifyRequest(BaseModel):
+    subject: str = ""
+    sender: str = ""
+    body: str = ""
+    received_at: str = ""
+    rule_score: int = 0
+    rule_reason: str = ""
+    llm_config: Optional[LlmConfig] = None
+
+
+@app.post("/classify_mail")
+def classify_mail(req: MailClassifyRequest) -> dict:
+    """邮件重要性精判（供 Java 侧在处理灰区邮件时调用）。
+
+    永远返回 200 + {"ok": bool}：判断不了就让调用方用规则结果，
+    不应该因为模型不可用而让收信链路报错。
+    """
+    llm_config = req.llm_config.model_dump() if req.llm_config else None
+    return llm.classify_mail(
+        subject=req.subject,
+        sender=req.sender,
+        body=req.body,
+        received_at=req.received_at,
+        rule_score=req.rule_score,
+        rule_reason=req.rule_reason,
+        llm_config=llm_config,
+    )
 
 
 @app.post("/chat", response_model=ChatResponse)

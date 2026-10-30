@@ -36,4 +36,7 @@ public class NotifySettingsDto {
 
     /** 校招岗位抓到新岗位时推送 */
     private boolean onPosting;
+
+    /** 邮箱收件时推送本次判为重要的邮件 */
+    private boolean onMail;
 }

@@ -471,6 +471,68 @@ class PostingRefreshTool(Tool):
         )
 
 
+
+# ---- 邮箱 ----
+class MailListTool(Tool):
+    name = "mail_list"
+    description = "查看邮箱里收到的邮件（默认只看重要的；scope=all 看全部，scope=todo 看已转待办的，keyword 可搜索）"
+    params = '{"scope": "important", "keyword": "面试"}'
+
+    def call(self, params, client):
+        scope = str(params.get("scope") or "important").strip()
+        if scope not in ("important", "all", "todo"):
+            scope = "important"
+        kwargs = {"scope": scope, "limit": 20}
+        kw = str(params.get("keyword") or "").strip()
+        if kw:
+            kwargs["keyword"] = kw
+        items = client.get("/api/mail/messages", **kwargs)
+        if not items:
+            return "（没有符合条件的邮件。若还没配置邮箱，需要先在邮箱组件里填地址与 IMAP 授权码）"
+        lines = []
+        for it in items[:20]:
+            level = it.get("importantLevel")
+            mark = {"high": "🔴重要", "medium": "🟡可关注"}.get(level, "⚪普通")
+            todo = "｜已转待办" if it.get("todoExists") else ""
+            when = str(it.get("receivedAt") or "").replace("T", " ")[:16]
+            lines.append(
+                f"#{it.get('id')} [{mark}] {it.get('senderName', '')}：{it.get('subject', '')}"
+                f"（{when}，{it.get('importantScore', 0)} 分{todo}）"
+            )
+        return "邮件列表：\n" + "\n".join(lines) + _tail(items)
+
+
+class MailSyncTool(Tool):
+    name = "mail_sync"
+    description = "立即从邮箱收取一次新邮件，重要邮件会自动转成待办（需要 5-20 秒）"
+    params = "{}"
+
+    def call(self, params, client):
+        r = client.post("/api/mail/sync")
+        if not r.get("ok"):
+            return f"收信失败：{r.get('message', '未知原因')}"
+        msg = r.get("message", "")
+        if r.get("fetched", 0) == 0:
+            return "没有新邮件"
+        lines = [msg]
+        for h in (r.get("highlights") or [])[:6]:
+            lines.append(h)
+        return "\n".join(lines)
+
+
+class MailToTodoTool(Tool):
+    name = "mail_to_todo"
+    description = "把某封邮件转成待办（需要邮件 id，可用 mail_list 查到）"
+    params = '{"id": 1}'
+
+    def call(self, params, client):
+        mid = params.get("id")
+        if mid is None:
+            return "错误：缺少邮件 id"
+        view = client.post(f"/api/mail/messages/{int(mid)}/todo")
+        return f"已把邮件「{view.get('subject', '')}」转成待办：{view.get('todoContent', '')}"
+
+
 # ---- 订阅 ----
 class SubscriptionListTool(Tool):
     name = "subscription_list"
@@ -521,7 +583,7 @@ class SummaryGenerateTool(Tool):
 # ---- 综合查询 ----
 class QueryAllTool(Tool):
     name = "query_all"
-    description = "综合查看工作台全貌（待办 + 便签 + 链接 + 订阅 + 求职进度 + 在招岗位）"
+    description = "综合查看工作台全貌（待办 + 便签 + 链接 + 订阅 + 求职进度 + 在招岗位 + 重要邮件）"
     params = "{}"
 
     def call(self, params, client):
@@ -533,6 +595,7 @@ class QueryAllTool(Tool):
         job_stats = client.get("/api/jobs/stats")
         postings = client.get("/api/postings", scope="pending")
         posting_stats = client.get("/api/postings/stats")
+        mails = client.get("/api/mail/messages", scope="important", limit=5)
 
         todo_lines = [f"#{it.get('id')} {'[完成]' if it.get('done') else '[未完成]'} {it.get('content','')}" for it in todos[:20]]
         note_lines = [f"#{it.get('id')} {it.get('content','')}" for it in notes[:20]]
@@ -544,6 +607,11 @@ class QueryAllTool(Tool):
             f"Offer {job_stats.get('offers', 0)}，回复率 {job_stats.get('replyRate', 0)}%）"
         )
         posting_lines = [_posting_line(it) for it in postings[:5]]
+        mail_lines = [
+            f"#{it.get('id')} [{'重要' if it.get('importantLevel') == 'high' else '可关注'}] "
+            f"{it.get('senderName', '')}：{it.get('subject', '')}"
+            for it in mails[:5]
+        ]
 
         parts = [
             "【待办】" + ("\n" + "\n".join(todo_lines) if todo_lines else "（无）"),
@@ -554,6 +622,7 @@ class QueryAllTool(Tool):
             "【校招岗位】待处理 " + str(posting_stats.get("pending", 0))
             + " / 已加入 " + str(posting_stats.get("applied", 0))
             + ("\n" + "\n".join(posting_lines) if posting_lines else "\n（暂无待处理岗位）"),
+            "【重要邮件】" + ("\n" + "\n".join(mail_lines) if mail_lines else "（暂无重要邮件）"),
         ]
         return "\n\n".join(parts)
 
@@ -566,6 +635,7 @@ _TOOL_CLASSES: List[type] = [
     AlgorithmSearchTool,
     JobListTool, JobAddTool, JobUpdateStageTool, JobStatsTool,
     PostingListTool, PostingApplyTool, PostingRefreshTool,
+    MailListTool, MailSyncTool, MailToTodoTool,
     SubscriptionListTool,
     MessageListTool,
     SummaryGenerateTool,

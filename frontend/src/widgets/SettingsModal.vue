@@ -77,6 +77,10 @@
             <input v-model="notifyForm.onPosting" type="checkbox" />
             <span>校招岗位新增提醒（每天 7:30 抓取后推送，命中关注关键词的排前面）</span>
           </label>
+          <label class="setting-check">
+            <input v-model="notifyForm.onMail" type="checkbox" />
+            <span>重要邮件提醒（收到面试/笔试等判为重要的邮件时推送，只看重要不看广告）</span>
+          </label>
         </div>
         <p class="setting-hint">
           只做出站推送（群机器人 webhook），无需公网 IP。配好后先点「发送测试」确认能收到，再打开总开关。
@@ -124,7 +128,8 @@ const notifyForm = reactive({
   onDigest: true,
   onInterview: true,
   onTodo: true,
-  onPosting: true
+  onPosting: true,
+  onMail: true
 })
 
 onMounted(async () => {
