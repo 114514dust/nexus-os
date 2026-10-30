@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -81,17 +82,42 @@ public class SubscriptionService {
         return added;
     }
 
-    /** 抓取所有启用订阅源（定时任务调用） */
+    /** 抓取所有启用订阅源（定时任务调用），返回有新增的源明细 */
     @Transactional
-    public int fetchAllEnabled() {
+    public List<FetchResult> fetchAllEnabled() {
+        List<FetchResult> results = new ArrayList<>();
         int total = 0;
         for (Subscription sub : subscriptionRepository.findByEnabledTrue()) {
-            total += doFetch(sub);
+            int added = doFetch(sub);
+            total += added;
+            if (added > 0) {
+                results.add(new FetchResult(sub.getName(), added));
+            }
         }
         if (total > 0) {
             notifier.notify(ChangeDomain.MESSAGE);
         }
-        return total;
+        return results;
+    }
+
+    /** 单个订阅源的抓取结果，用于汇总推送文案 */
+    public static class FetchResult {
+
+        private final String name;
+        private final int added;
+
+        public FetchResult(String name, int added) {
+            this.name = name;
+            this.added = added;
+        }
+
+        public String getName() {
+            return name;
+        }
+
+        public int getAdded() {
+            return added;
+        }
     }
 
     private int doFetch(Subscription sub) {

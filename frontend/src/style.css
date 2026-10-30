@@ -750,10 +750,97 @@ button {
   font-size: 13px;
 }
 
-.setting-field input:focus {
+.setting-field select {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  padding: 8px 10px;
+  font-size: 13px;
+}
+
+.setting-field input:focus,
+.setting-field select:focus {
   outline: none;
   border-color: var(--accent);
 }
+
+/* 设置面板：内容变多后需要限高滚动，头部和底部按钮固定 */
+.settings-panel {
+  width: 420px;
+  max-height: 86vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.settings-panel .config-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+/* 分组小标题 */
+.setting-section {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+  letter-spacing: 0.04em;
+  padding: 4px 0 10px;
+  margin-top: 8px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 14px;
+}
+
+.setting-section:first-child {
+  margin-top: 0;
+}
+
+.setting-checks {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.setting-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text);
+  cursor: pointer;
+  user-select: none;
+}
+
+.setting-check input {
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.setting-test {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+
+.test-result {
+  font-size: 12px;
+  line-height: 1.5;
+  flex: 1;
+  min-width: 0;
+  word-break: break-word;
+}
+
+.test-result.ok {
+  color: var(--accent);
+}
+
+.test-result.err {
+  color: var(--danger);
+}
+
 
 .setting-hint {
   font-size: 12px;

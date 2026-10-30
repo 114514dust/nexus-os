@@ -98,6 +98,18 @@ export interface LlmSettings {
   model: string
 }
 
+/** 消息推送配置（群机器人 webhook） */
+export interface NotifySettings {
+  enabled: boolean
+  /** feishu | wecom */
+  channel: string
+  webhookUrl: string
+  /** 飞书签名校验密钥，留空表示机器人未开启签名 */
+  secret: string
+  onFeed: boolean
+  onDigest: boolean
+}
+
 export interface Page {
   id: number
   name: string

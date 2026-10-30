@@ -52,6 +52,10 @@ public class SubscriptionController {
 
     @PostMapping("/fetch-all")
     public ApiResponse<Integer> fetchAll() {
-        return ApiResponse.ok(subscriptionService.fetchAllEnabled());
+        // 前端只关心总新增数，明细由定时任务的推送消费
+        int total = subscriptionService.fetchAllEnabled().stream()
+                .mapToInt(SubscriptionService.FetchResult::getAdded)
+                .sum();
+        return ApiResponse.ok(total);
     }
 }
