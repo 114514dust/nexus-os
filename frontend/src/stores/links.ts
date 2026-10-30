@@ -18,7 +18,11 @@ export const useLinkStore = defineStore('links', {
     },
     async add(data: { title: string; url: string }) {
       const link = await createLink(data)
-      this.items.push(link)
+      // 去重：创建后后端会广播变更，useLiveReload 可能已先 load() 把这条带回来
+      if (!this.items.some((l) => l.id === link.id)) {
+        this.items.push(link)
+      }
+      return link
     },
     async remove(id: number) {
       await deleteLink(id)

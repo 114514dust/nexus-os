@@ -42,6 +42,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { useLinkStore } from '@/stores/links'
 import { useLiveReload } from '@/composables/useLiveReload'
+import { toastError, friendlyError } from '@/utils/toast'
 import type { Link } from '@/types'
 
 const props = defineProps<{ config?: Record<string, any> }>()
@@ -65,9 +66,13 @@ async function add() {
   const t = title.value.trim()
   const u = url.value.trim()
   if (!t || !u) return
-  await store.add({ title: t, url: u })
-  title.value = ''
-  url.value = ''
+  try {
+    await store.add({ title: t, url: u })
+    title.value = ''
+    url.value = ''
+  } catch (err) {
+    toastError('添加链接失败：' + friendlyError(err))
+  }
 }
 
 function openEmbed(l: Link) {

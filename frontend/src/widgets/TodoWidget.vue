@@ -19,6 +19,7 @@
 import { computed, ref, onMounted } from 'vue'
 import { useTodoStore } from '@/stores/todos'
 import { useLiveReload } from '@/composables/useLiveReload'
+import { toastError, friendlyError } from '@/utils/toast'
 
 const props = defineProps<{ config?: Record<string, any> }>()
 
@@ -38,8 +39,12 @@ useLiveReload('todo', () => store.load())
 async function add() {
   const v = text.value.trim()
   if (!v) return
-  await store.add(v)
-  text.value = ''
+  try {
+    await store.add(v)
+    text.value = ''
+  } catch (err) {
+    toastError('添加待办失败：' + friendlyError(err))
+  }
 }
 </script>
 

@@ -18,7 +18,11 @@ export const useTodoStore = defineStore('todos', {
     },
     async add(content: string) {
       const todo = await createTodo(content)
-      this.items.push(todo)
+      // 去重：创建后后端会广播变更，useLiveReload 可能已先 load() 把这条带回来
+      if (!this.items.some((t) => t.id === todo.id)) {
+        this.items.push(todo)
+      }
+      return todo
     },
     async toggle(todo: Todo) {
       await updateTodo(todo.id, { done: !todo.done })

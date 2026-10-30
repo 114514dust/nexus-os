@@ -30,7 +30,8 @@ public class NoteService {
     @Transactional
     public Note create(NoteCreateRequest req) {
         Note note = new Note();
-        note.setContent(req.getContent());
+        // 允许空内容（新建空白便签），统一存空串避免 null 比较问题
+        note.setContent(req.getContent() == null ? "" : req.getContent());
         note.setCreatedAt(LocalDateTime.now());
         note.setUpdatedAt(LocalDateTime.now());
         Note saved = noteRepository.save(note);
