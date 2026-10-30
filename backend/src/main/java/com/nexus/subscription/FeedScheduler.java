@@ -30,16 +30,25 @@ public class FeedScheduler {
                 return;
             }
             int total = results.stream().mapToInt(SubscriptionService.FetchResult::getAdded).sum();
-            log.info("订阅抓取完成，新增 {} 条消息", total);
 
             StringBuilder body = new StringBuilder();
             for (SubscriptionService.FetchResult r : results) {
-                body.append("· ").append(r.getName()).append("：").append(r.getAdded()).append(" 条\n");
+                if (r.isFailed()) {
+                    body.append("· ").append(r.getName()).append("：抓取失败\n");
+                } else {
+                    body.append("· ").append(r.getName()).append("：").append(r.getAdded()).append(" 条\n");
+                }
             }
-            notifyService.notifyAsync(
-                    NotifyService.EVENT_FEED,
-                    "📡 订阅更新 · " + total + " 条新内容",
-                    body.toString().trim());
+            if (total > 0) {
+                log.info("订阅抓取完成，新增 {} 条消息", total);
+                notifyService.notifyAsync(
+                        NotifyService.EVENT_FEED,
+                        "📡 订阅更新 · " + total + " 条新内容",
+                        body.toString().trim());
+            } else {
+                // 没有新内容也全是失败时，值得告诉用户「不是没更新，是抓不到」
+                log.warn("订阅抓取全部失败或没有新内容：{}", body.toString().trim());
+            }
         } catch (Exception e) {
             log.error("订阅抓取任务失败", e);
         }

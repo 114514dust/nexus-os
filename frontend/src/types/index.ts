@@ -54,12 +54,48 @@ export interface Link {
 export interface Message {
   id: number
   source: string
+  /** 来源中文短标签（RSS / B站 / 飞书 / 邮件），后端统一给，前端不用再维护映射表 */
+  sourceLabel: string
   channel: string | null
   sender: string | null
+  title: string
+  /** 原文地址，为空表示这条没有可跳转的链接 */
+  link: string | null
   content: string
   receivedAt: string
-  processed: boolean
+  /** 内容发布时间；为空表示来源没给，显示时回退到 receivedAt */
+  publishedAt: string | null
+  read: boolean
 }
+
+/** 某个来源的条数与未读数，用于消息流顶部的筛选标签 */
+export interface MessageSourceStat {
+  key: string
+  label: string
+  count: number
+  unread: number
+}
+
+export interface MessagePage {
+  list: Message[]
+  total: number
+  page: number
+  size: number
+  unread: number
+  sources: MessageSourceStat[]
+}
+
+/** 订阅地址识别结果 */
+export interface SubscriptionDiscover {
+  ok: boolean
+  type: string
+  name: string
+  url: string
+  sampleCount: number
+  message: string
+  hint: string
+}
+
 
 export interface Summary {
   id: number

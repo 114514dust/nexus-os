@@ -34,6 +34,16 @@ public class SubscriptionController {
         return ApiResponse.ok(subscriptionService.create(req));
     }
 
+    /**
+     * 地址识别：粘一个网址进来，告诉前端「这是 B 站 UP 主 / 这是 RSS / 认不出来」。
+     * 用 POST 是因为要真实发起网络请求探测，不是幂等读取。
+     */
+    @PostMapping("/discover")
+    public ApiResponse<SubscriptionDiscoverResult> discover(
+            @Valid @RequestBody SubscriptionDiscoverRequest req) {
+        return ApiResponse.ok(subscriptionService.discover(req.getUrl()));
+    }
+
     @DeleteMapping("/{id}")
     public ApiResponse<Void> delete(@PathVariable Long id) {
         subscriptionService.delete(id);

@@ -2,8 +2,9 @@ package com.nexus.subscription;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.nexus.common.ApiException;
+import com.nexus.common.ErrorCode;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
@@ -16,8 +17,10 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.time.Duration;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
@@ -70,7 +73,8 @@ public class BilibiliFetcher implements FeedFetcher {
         String hostMid = subscription.getUrl().trim();
         String[] keys = getWbiKeys();
         if (keys == null) {
-            return Collections.emptyList();
+            // 不再静默返回空列表：拿不到签名密钥就是抓不了，得让用户知道
+            throw new ApiException(ErrorCode.BAD_REQUEST, "B 站接口暂时不可达，稍后再试");
         }
         String mixinKey = getMixinKey(keys[0], keys[1]);
 
@@ -98,17 +102,56 @@ public class BilibiliFetcher implements FeedFetcher {
             int code = node.path("code").asInt(-1);
             if (code != 0) {
                 log.warn("B站动态抓取失败: code={}, message={}", code, node.path("message").asText());
-                return Collections.emptyList();
+                throw new ApiException(ErrorCode.BAD_REQUEST, describeBiliError(code));
             }
             return parseItems(node.path("data").path("items"));
+        } catch (ApiException e) {
+            throw e;
         } catch (Exception e) {
             log.error("B站动态抓取异常: uid={}", hostMid, e);
-            return Collections.emptyList();
+            throw new ApiException(ErrorCode.BAD_REQUEST, "B 站动态抓取失败（网络异常，稍后再试）");
+        }
+    }
+
+    /** 把 B 站的错误码翻成用户能懂的话 */
+    private String describeBiliError(int code) {
+        switch (code) {
+            case -352:
+            case -412:
+            case -403:
+                return "B 站风控拦截了本次请求，过几分钟再抓一次";
+            case -404:
+                return "这个 UP 主不存在，检查一下 uid 或空间链接";
+            case -101:
+                return "B 站要求登录，暂时抓不到这个账号的动态";
+            default:
+                return "B 站返回错误 code=" + code + "，稍后再试";
+        }
+    }
+
+    /**
+     * 取 UP 主昵称，用于订阅源自动命名。
+     * 拿不到不算失败——订阅本身还能用，退化成「B站 UP 主 <uid>」。
+     */
+    public String fetchAuthorName(String uid) {
+        try {
+            HttpHeaders headers = new HttpHeaders();
+            headers.set(HttpHeaders.USER_AGENT, UA);
+            headers.set(HttpHeaders.REFERER, "https://space.bilibili.com/");
+            ResponseEntity<String> resp = restTemplate.exchange(
+                    "https://api.bilibili.com/x/web-interface/card?mid=" + urlEncode(uid),
+                    HttpMethod.GET, new HttpEntity<>(headers), String.class);
+            JsonNode card = objectMapper.readTree(resp.getBody())
+                    .path("data").path("card").path("name");
+            String name = card.asText("");
+            return name.isEmpty() ? null : name;
+        } catch (Exception e) {
+            log.debug("取 B 站昵称失败: uid={}, {}", uid, e.getMessage());
+            return null;
         }
     }
 
     // ---- wbi 签名 ----
-
     private String[] getWbiKeys() {
         if (cachedImgKey != null && System.currentTimeMillis() - cachedAt < 3_600_000) {
             return new String[]{cachedImgKey, cachedSubKey};
@@ -188,13 +231,21 @@ public class BilibiliFetcher implements FeedFetcher {
             String text = extractText(item);
             String link = "https://t.bilibili.com/" + dynamicId;
             String title = text.isEmpty() ? "(动态)" : text;
-            items.add(new FetchedItem(dynamicId, title, link, text));
+            items.add(new FetchedItem(dynamicId, title, link, text, publishedAt(item)));
         }
         return items;
     }
 
-    private String extractText(JsonNode item) {
-        StringBuilder sb = new StringBuilder();
+    /** 动态发布时间（秒级时间戳），取不到返回 null */
+    private LocalDateTime publishedAt(JsonNode item) {
+        long ts = item.path("modules").path("module_author").path("pub_ts").asLong(0);
+        if (ts <= 0) {
+            return null;
+        }
+        return LocalDateTime.ofInstant(Instant.ofEpochSecond(ts), ZoneId.systemDefault());
+    }
+
+    private String extractText(JsonNode item) {        StringBuilder sb = new StringBuilder();
         JsonNode desc = item.path("modules").path("module_dynamic").path("desc").path("text");
         if (desc.isTextual()) {
             sb.append(desc.asText());

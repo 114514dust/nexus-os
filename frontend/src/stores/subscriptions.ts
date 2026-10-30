@@ -4,15 +4,18 @@ import {
   createSubscription,
   deleteSubscription,
   toggleSubscription,
-  fetchSubscription
+  fetchSubscription,
+  fetchAllSubscriptions,
+  discoverSubscription
 } from '@/api/subscriptions'
-import type { Subscription } from '@/types'
+import type { Subscription, SubscriptionDiscover } from '@/types'
 
 export const useSubscriptionStore = defineStore('subscriptions', {
   state: () => ({
     items: [] as Subscription[],
     loading: false,
-    fetchingId: null as number | null
+    fetchingId: null as number | null,
+    fetchingAll: false
   }),
   actions: {
     async load() {
@@ -23,9 +26,14 @@ export const useSubscriptionStore = defineStore('subscriptions', {
         this.loading = false
       }
     },
-    async add(data: { type: string; name: string; url: string }) {
-      await createSubscription(data)
+    /** 只识别不落库，让用户先看到「识别成了什么」 */
+    async discover(url: string): Promise<SubscriptionDiscover> {
+      return discoverSubscription(url)
+    },
+    async add(data: { type: string; name: string; url: string }): Promise<Subscription> {
+      const sub = await createSubscription(data)
       await this.load()
+      return sub
     },
     async remove(id: number) {
       await deleteSubscription(id)
@@ -41,6 +49,16 @@ export const useSubscriptionStore = defineStore('subscriptions', {
         return await fetchSubscription(id)
       } finally {
         this.fetchingId = null
+      }
+    },
+    async fetchAll(): Promise<number> {
+      this.fetchingAll = true
+      try {
+        const total = await fetchAllSubscriptions()
+        await this.load()
+        return total
+      } finally {
+        this.fetchingAll = false
       }
     }
   }

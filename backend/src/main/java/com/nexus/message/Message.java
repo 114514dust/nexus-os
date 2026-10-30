@@ -37,8 +37,24 @@ public class Message {
     @Column(nullable = false, columnDefinition = "TEXT")
     private String content;
 
+    /** 标题：订阅类消息从 feed 条目带过来；普通消息为空，前端回退到 content 首行 */
+    @Column(name = "item_title", length = 512)
+    private String itemTitle;
+
+    /** 原文链接：有值则前端整条可点开，不再让用户复制粘贴 URL */
+    @Column(name = "item_link", length = 1024)
+    private String itemLink;
+
+    /** 是否已读（列名避开 H2 的 READ 关键字） */
+    @Column(name = "msg_read", nullable = false)
+    private boolean msgRead;
+
     @Column(name = "received_at", nullable = false)
     private LocalDateTime receivedAt;
+
+    /** 内容本身的发布时间（feed 的 pubDate）；为空表示来源没给 */
+    @Column(name = "published_at")
+    private LocalDateTime publishedAt;
 
     /** 是否已被 Agent 消化处理，供记忆层使用 */
     @Column(nullable = false)
