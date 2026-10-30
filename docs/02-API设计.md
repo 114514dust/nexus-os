@@ -140,6 +140,25 @@
 `scope`：`active`（默认，未到终态）/ `closed`（已入职、未通过）/ `all`；`sort`：`recent` / `due` / `company`，星标永远置顶。
 `nextAt` 同样遵循「null = 不更新」，清空日期用 `clearNextAt: true`。
 
+### 5. 校招岗位
+
+外部渠道（当前是秋招网）抓来的在招岗位池，与投递记录分开：`job_posting` 是「外面有什么」，`job_application` 是「我投了什么」。
+
+| 方法 | 路径 | 说明 |
+|---|---|---|
+| GET | `/api/postings` | 列表，支持 `keyword/category/scope/onlyMatched` |
+| GET | `/api/postings/stats` | 概览（待处理 / 已加入 / 近 3 天 / 收藏） |
+| POST | `/api/postings/refresh` | 手动抓取，返回 `fetched/added/updated/newIds` |
+| POST | `/api/postings` | 手动添加（只有 `company` 必填） |
+| PUT | `/api/postings/{id}` | 收藏 / 忽略（`{starred, ignored}`，null 表示不改） |
+| DELETE | `/api/postings/{id}` | 删除 |
+| POST | `/api/postings/{id}/apply` | 加入求职追踪，返回 `{posting, job, created}` |
+| GET / PUT | `/api/postings/prefs` | 关注关键词、自动抓取开关、抓取页数 |
+
+`scope`：`pending`（默认，未加入未忽略）/ `applied`（已加入）/ `ignored` / `all`。
+`apply` 是幂等的：已加入过返回原投递（`created=false`）；若那条投递已被删除，则允许重新加入。
+截止文案能解析成日期时（`2026-11-15` / `11月15日`）会自动填进投递的 `nextAt`。
+
 ---
 
 ## 五、规划中 API（Phase 2 / 3 / 4）
