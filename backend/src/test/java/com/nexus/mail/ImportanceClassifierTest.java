@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Test;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -85,6 +86,63 @@ class ImportanceClassifierTest {
         assertNull(due("请尽快回复确认"));
         // 版权年份之类离当前太远的日期不能当成截止日
         assertNull(due("© 2019-2021 Example Inc. All rights reserved."));
+    }
+
+
+    @Test
+    void 发件人规则可以覆盖正文里的营销信号() {
+        SenderRule rule = rule(1L, "school.edu.cn", SenderRule.IMPORTANT);
+        FetchedMail mail = mail("【限时】毕业生服务周，专属福利领取",
+                "notice@school.edu.cn", "退订请回复 TD。");
+        ImportanceClassifier.Verdict v = classifier.classify(mail, cfg, List.of(rule));
+
+        assertEquals(ImportanceClassifier.HIGH, v.getLevel(), v.getReason());
+        assertEquals(100, v.getScore(), "规则说重要，正文里的「退订」不该把它压回去");
+        assertEquals(Long.valueOf(1L), v.getRuleId(), "命中的规则要回传给调用方计次");
+        assertTrue(v.getReason().contains("一律重要"), v.getReason());
+    }
+
+    @Test
+    void 可关注规则只保底到中档() {
+        SenderRule rule = rule(2L, "教务", SenderRule.WATCH);
+        FetchedMail mail = mail("选课系统维护", "office@somewhere.example.com", "本周末例行维护。");
+        mail.setSenderName("教务处");
+        ImportanceClassifier.Verdict v = classifier.classify(mail, cfg, List.of(rule));
+
+        assertEquals(ImportanceClassifier.MEDIUM, v.getLevel(), v.getReason());
+        assertTrue(v.getScore() >= 60 && v.getScore() < ImportanceClassifier.HIGH_THRESHOLD,
+                "保底 60，但不能顶到会建待办的档位：" + v.getScore());
+    }
+
+    @Test
+    void 不提醒规则直接沉底且不送进可关注列表() {
+        SenderRule rule = rule(3L, "noreply@shop.example.com", SenderRule.IGNORE);
+        FetchedMail mail = mail("面试通知", "noreply@shop.example.com", "请参加面试");
+        ImportanceClassifier.Verdict v = classifier.classify(mail, cfg, List.of(rule));
+
+        assertEquals(0, v.getScore());
+        assertEquals(ImportanceClassifier.LOW, v.getLevel());
+        assertTrue(v.getReason().contains("不提醒"), v.getReason());
+    }
+
+    @Test
+    void 发件人显示名也能命中规则() {
+        SenderRule rule = rule(4L, "就业中心", SenderRule.IMPORTANT);
+        FetchedMail mail = mail("关于领取材料的说明", "xyz123@random-mail.example.com", "请到 A 楼 302 领取。");
+        mail.setSenderName("就业中心办公室");
+
+        assertEquals(ImportanceClassifier.HIGH,
+                classifier.classify(mail, cfg, List.of(rule)).getLevel());
+        assertEquals(ImportanceClassifier.LOW, classifier.classify(mail, cfg).getLevel(),
+                "没有规则时同一封邮件不该重要，否则用例证明不了规则起了作用");
+    }
+
+    private SenderRule rule(Long id, String pattern, String action) {
+        SenderRule r = new SenderRule();
+        r.setId(id);
+        r.setPattern(pattern);
+        r.setAction(action);
+        return r;
     }
 
     private LocalDate due(String text) {

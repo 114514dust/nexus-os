@@ -49,6 +49,11 @@ nexus:
     # 邮箱收取 cron（默认每 15 分钟。面试/笔试通知有时效，一天一收太慢；
     # 定时开关本身由页面上的「自动收取」控制，这里只决定检查频率）
     cron: ${NEXUS_MAIL_CRON:0 */15 * * * *}
+    # 每日摘要推送 cron（默认每天 8:00，晚于岗位抓取 7:30、早于待办提醒 8:30）
+    digest-cron: ${NEXUS_MAIL_DIGEST_CRON:0 0 8 * * *}
+    # 附件保存目录（首次下载时才落盘）与单文件上限
+    attachment-dir: ${NEXUS_MAIL_ATTACHMENT_DIR:./data/mail-attachments}
+    attachment-max-mb: ${NEXUS_MAIL_ATTACHMENT_MAX_MB:25}
 
 management:
   endpoints:

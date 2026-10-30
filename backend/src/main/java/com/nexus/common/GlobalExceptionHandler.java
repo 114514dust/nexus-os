@@ -1,6 +1,7 @@
 package com.nexus.common;
 
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -38,6 +39,17 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiResponse<Void>> handleUnreadable(HttpMessageNotReadableException e) {
         return ResponseEntity.badRequest()
                 .body(ApiResponse.error(400, "请求参数格式不正确（日期请用 yyyy-MM-dd）"));
+    }
+
+    /**
+     * 唯一约束/外键冲突。落到通用处理器会变成「服务器内部错误」，
+     * 而这绝大多数是「重复提交」——告诉客户端冲突，比让他猜要强。
+     */
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<ApiResponse<Void>> handleIntegrity(DataIntegrityViolationException e) {
+        log.warn("数据冲突：{}", e.getMostSpecificCause().getMessage());
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(ApiResponse.error(ErrorCode.CONFLICT.getCode(), "数据冲突：可能重复添加了同样的内容"));
     }
 
     @ExceptionHandler(Exception.class)

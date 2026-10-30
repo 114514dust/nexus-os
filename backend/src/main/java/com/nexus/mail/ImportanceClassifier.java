@@ -82,9 +82,19 @@ public class ImportanceClassifier {
         private String reason = "";
         /** 规则从正文里抠出来的日期，作为「待办到期日」的兜底 */
         private LocalDate dueDate;
+        /** 命中的发件人规则（没有则 null），由调用方回写命中计数 */
+        private Long ruleId;
     }
 
     public Verdict classify(FetchedMail mail, MailSettingsDto cfg) {
+        return classify(mail, cfg, java.util.Collections.emptyList());
+    }
+
+    /**
+     * @param rules 用户配置的发件人规则。一次收取里对所有邮件复用同一份列表，
+     *              避免每封信查一次库
+     */
+    public Verdict classify(FetchedMail mail, MailSettingsDto cfg, List<SenderRule> rules) {
         Verdict v = new Verdict();
         String subject = lower(mail.getSubject());
         String body = lower(tail(mail.getBody(), 4000));
@@ -92,6 +102,18 @@ public class ImportanceClassifier {
         String sender = lower(mail.getSenderAddr());
 
         List<String> reasons = new ArrayList<>();
+
+        // 0. 发件人规则：用户自己定的判断，优先级高于一切
+        SenderRule rule = SenderRuleService.match(rules, mail.getSenderAddr(), mail.getSenderName());
+        if (rule != null) {
+            v.setRuleId(rule.getId());
+            if (SenderRule.IGNORE.equals(rule.getAction())) {
+                v.setScore(0);
+                v.setLevel(LOW);
+                v.setReason("发件人规则「" + rule.getPattern() + "」：不提醒");
+                return v;
+            }
+        }
 
         // 1. 忽略名单优先：命中了就没什么好算的，用户已经明确表示不想看
         String ignored = matchIgnored(sender, cfg.getIgnoreSenders());
@@ -155,12 +177,15 @@ public class ImportanceClassifier {
             reasons.add("含明确日期");
         }
 
-        // 6. 噪音压制
-        String noiseHit = firstHit(text, NOISE);
-        if (noiseHit != null) {
-            score -= 40;
-            reasons.clear();
-            reasons.add("疑似营销内容（「" + noiseHit + "」）");
+        // 6. 噪音压制。命中用户规则时跳过：他已经明确表态「这个发件人对我不一样」，
+        //    就不该被正文里的一个「退订」把整封邮件压成广告
+        if (rule == null) {
+            String noiseHit = firstHit(text, NOISE);
+            if (noiseHit != null) {
+                score -= 40;
+                reasons.clear();
+                reasons.add("疑似营销内容（「" + noiseHit + "」）");
+            }
         }
 
         // 7. 验证码类：需要立刻看，但转成待办没意义，固定停在中档
@@ -168,6 +193,18 @@ public class ImportanceClassifier {
         if (codeMail && score < HIGH_THRESHOLD) {
             score = Math.max(score, MEDIUM_THRESHOLD);
             reasons.add("验证码类，看完即弃");
+        }
+
+        // 8. 发件人规则收尾：important 直接顶到 100，watch 至少进「可关注」。
+        //    放在最后是为了让规则能覆盖上面所有的启发式判断 —— 用户说了算。
+        if (rule != null) {
+            if (SenderRule.IMPORTANT.equals(rule.getAction())) {
+                score = 100;
+                reasons.add(0, "规则「" + rule.getPattern() + "」：一律重要");
+            } else if (SenderRule.WATCH.equals(rule.getAction())) {
+                score = Math.max(score, 60);
+                reasons.add(0, "规则「" + rule.getPattern() + "」：至少可关注");
+            }
         }
 
         score = Math.max(0, Math.min(100, score));

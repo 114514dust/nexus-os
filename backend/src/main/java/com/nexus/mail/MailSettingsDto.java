@@ -45,10 +45,16 @@ public class MailSettingsDto {
     /** 单次最多读取最近多少封，避免首次同步把几年邮件全拉下来 */
     private int fetchLimit = 30;
 
+    /** 每天早上推送一封「昨天的要紧邮件」摘要 */
+    private boolean digestEnabled = true;
+
     // ---- 只读回显 ----
 
     /** 上次收取完成时间（yyyy-MM-dd HH:mm），未收取过为空 */
     private String lastSyncAt;
+
+    /** 上次推送摘要的日期（yyyy-MM-dd）。同一天不重复推，重启也不会补发 */
+    private String lastDigestDate;
 
     /** 地址与授权码都填了才允许连接 */
     private boolean configured;

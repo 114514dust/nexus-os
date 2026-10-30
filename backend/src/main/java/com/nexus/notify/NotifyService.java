@@ -44,6 +44,9 @@ public class NotifyService {
     /** 邮箱收到重要邮件 */
     public static final String EVENT_MAIL = "mail";
 
+    /** 每天早上的一封邮件摘要 */
+    public static final String EVENT_MAIL_DIGEST = "mailDigest";
+
     /** 同类型事件的去重窗口（毫秒） */
     private static final long DEDUP_WINDOW_MS = 60_000L;
 
@@ -127,6 +130,9 @@ public class NotifyService {
         }
         if (EVENT_MAIL.equals(event)) {
             return cfg.isOnMail();
+        }
+        if (EVENT_MAIL_DIGEST.equals(event)) {
+            return cfg.isOnMailDigest();
         }
         return false;
     }

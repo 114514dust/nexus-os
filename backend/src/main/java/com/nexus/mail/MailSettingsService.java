@@ -6,6 +6,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 
@@ -35,6 +36,8 @@ public class MailSettingsService {
     private static final String KEY_IGNORE_SENDERS = "mail.ignoreSenders";
     private static final String KEY_EXTRA_KEYWORDS = "mail.extraKeywords";
     private static final String KEY_FETCH_LIMIT = "mail.fetchLimit";
+    private static final String KEY_DIGEST_ENABLED = "mail.digestEnabled";
+    private static final String KEY_LAST_DIGEST = "mail.lastDigestDate";
     private static final String KEY_LAST_SYNC = "mail.lastSyncAt";
     private static final String KEY_LAST_ERROR = "mail.lastError";
 
@@ -60,6 +63,8 @@ public class MailSettingsService {
         dto.setIgnoreSenders(getValue(KEY_IGNORE_SENDERS));
         dto.setExtraKeywords(getValue(KEY_EXTRA_KEYWORDS));
         dto.setFetchLimit(clamp(parseInt(getValue(KEY_FETCH_LIMIT), 30), 5, 200));
+        dto.setDigestEnabled(parseBool(getValue(KEY_DIGEST_ENABLED), true));
+        dto.setLastDigestDate(getValue(KEY_LAST_DIGEST));
         dto.setLastSyncAt(getValue(KEY_LAST_SYNC));
         dto.setLastError(getValue(KEY_LAST_ERROR));
         dto.setConfigured(!isBlank(dto.getAddress()) && !isBlank(dto.getAuthCode()));
@@ -75,6 +80,7 @@ public class MailSettingsService {
         if (!dto.isConfigured()) {
             dto.setLastSyncAt("");
             dto.setLastError("");
+            dto.setLastDigestDate("");
         }
         return dto;
     }
@@ -110,6 +116,7 @@ public class MailSettingsService {
         }
         // 开关一律覆盖：前端表单总是带全量布尔值
         setValue(KEY_AUTO_TODO, String.valueOf(dto.isAutoTodo()));
+        setValue(KEY_DIGEST_ENABLED, String.valueOf(dto.isDigestEnabled()));
         setValue(KEY_LLM_JUDGE, String.valueOf(dto.isLlmJudge()));
         // 改了配置，上一次的失败原因就不再适用，留着只会误导用户
         setValue(KEY_LAST_ERROR, "");
@@ -133,6 +140,12 @@ public class MailSettingsService {
             text = text.substring(0, 300);
         }
         setValue(KEY_LAST_ERROR, text);
+    }
+
+    /** 记下「哪一天的摘要已经推过」。同一天重跑定时任务时据此跳过 */
+    @Transactional
+    public void markDigest(LocalDate date) {
+        setValue(KEY_LAST_DIGEST, date == null ? "" : date.toString());
     }
 
     private static String mask(String code) {

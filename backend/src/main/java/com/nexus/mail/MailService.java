@@ -11,7 +11,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import javax.mail.AuthenticationFailedException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -54,6 +53,8 @@ public class MailService {
     private final MailFetcher fetcher;
     private final ImportanceClassifier classifier;
     private final MailLlmClient llmClient;
+    private final MailAttachmentService attachmentService;
+    private final SenderRuleService ruleService;
     private final ChangeEventNotifier notifier;
 
     // ---- 配置 ----
@@ -81,7 +82,7 @@ public class MailService {
             settingsService.markFailed("");
             return r;
         } catch (Exception e) {
-            String reason = friendly(e);
+            String reason = MailErrors.friendly(e);
             settingsService.markFailed(reason);
             return MailSyncResult.fail(reason);
         }
@@ -103,11 +104,14 @@ public class MailService {
         try {
             fetched = fetcher.fetch(cfg, known);
         } catch (Exception e) {
-            String reason = friendly(e);
+            String reason = MailErrors.friendly(e);
             settingsService.markFailed(reason);
             log.warn("[mail] 收信失败：{}", reason);
             return MailSyncResult.fail(reason);
         }
+
+        // 规则一次查出、整批复用：每封信查一次库没必要
+        List<SenderRule> rules = ruleService.all();
 
         int high = 0;
         int medium = 0;
@@ -116,7 +120,7 @@ public class MailService {
         r.setOk(true);
         for (FetchedMail fm : fetched) {
             try {
-                MailMessage saved = ingest(fm, cfg);
+                MailMessage saved = ingest(fm, cfg, rules);
                 if (ImportanceClassifier.HIGH.equals(saved.getImportantLevel())) {
                     high++;
                 } else if (ImportanceClassifier.MEDIUM.equals(saved.getImportantLevel())) {
@@ -157,8 +161,8 @@ public class MailService {
     }
 
     /** 判定 + 入库（+ 必要时建待办），返回落库后的实体 */
-    private MailMessage ingest(FetchedMail fm, MailSettingsDto cfg) {
-        ImportanceClassifier.Verdict rule = classifier.classify(fm, cfg);
+    private MailMessage ingest(FetchedMail fm, MailSettingsDto cfg, List<SenderRule> rules) {
+        ImportanceClassifier.Verdict rule = classifier.classify(fm, cfg, rules);
         int score = rule.getScore();
         String reason = rule.getReason();
         LocalDate due = rule.getDueDate();
@@ -211,6 +215,16 @@ public class MailService {
         m.setIgnored(false);
         m.setCreatedAt(LocalDateTime.now());
         MailMessage saved = mailRepository.save(m);
+
+        // 附件只记元信息，字节等用户点下载时再取
+        try {
+            attachmentService.saveAll(saved.getId(), fm.getAttachments());
+        } catch (Exception e) {
+            log.warn("[mail] 保存附件元信息失败 邮件={} 原因={}", saved.getId(), e.getMessage());
+        }
+        if (rule.getRuleId() != null) {
+            ruleService.bumpHit(rule.getRuleId());
+        }
 
         if (ImportanceClassifier.HIGH.equals(saved.getImportantLevel()) && cfg.isAutoTodo()) {
             Todo todo = createTodo(saved.getSubject(), llmTodo, due);
@@ -280,7 +294,7 @@ public class MailService {
     public MailView detail(Long id) {
         MailMessage m = getOrThrow(id);
         Map<Long, Todo> todos = todoMap(Collections.singletonList(m));
-        MailView view = toView(m, todos.get(m.getTodoId()));
+        MailView view = toView(m, todos.get(m.getTodoId()), attachmentService.listByMail(m.getId()));
         view.setBody(m.getBody());
         return view;
     }
@@ -320,7 +334,9 @@ public class MailService {
             notifier.notify(ChangeDomain.TODO);
             notifier.notify(ChangeDomain.MAIL);
         }
-        MailView view = toView(m, existing != null ? existing : todoRepository.findById(m.getTodoId()).orElse(null));
+        MailView view = toView(m,
+                existing != null ? existing : todoRepository.findById(m.getTodoId()).orElse(null),
+                attachmentService.listByMail(m.getId()));
         view.setBody(m.getBody());
         return view;
     }
@@ -340,6 +356,7 @@ public class MailService {
     @Transactional
     public void delete(Long id) {
         MailMessage m = getOrThrow(id);
+        attachmentService.deleteForMail(id);
         mailRepository.delete(m);
         notifier.notify(ChangeDomain.MAIL);
     }
@@ -348,8 +365,10 @@ public class MailService {
 
     private List<MailView> toViews(List<MailMessage> list) {
         Map<Long, Todo> todos = todoMap(list);
+        Map<Long, List<MailAttachmentView>> atts = attachmentService.mapByMails(
+                list.stream().map(MailMessage::getId).collect(Collectors.toList()));
         return list.stream()
-                .map(m -> toView(m, todos.get(m.getTodoId())))
+                .map(m -> toView(m, todos.get(m.getTodoId()), atts.getOrDefault(m.getId(), Collections.emptyList())))
                 .collect(Collectors.toList());
     }
 
@@ -365,7 +384,7 @@ public class MailService {
                 .collect(Collectors.toMap(Todo::getId, t -> t));
     }
 
-    private static MailView toView(MailMessage m, Todo todo) {
+    private static MailView toView(MailMessage m, Todo todo, List<MailAttachmentView> attachments) {
         MailView v = new MailView();
         v.setId(m.getId());
         v.setSenderAddr(m.getSenderAddr());
@@ -384,6 +403,7 @@ public class MailService {
         v.setScoreReason(m.getScoreReason());
         v.setVerdictBy(m.getVerdictBy());
         v.setHasAttachment(m.isHasAttachment());
+        v.setAttachments(attachments == null ? Collections.emptyList() : attachments);
         v.setRead(m.isReadFlag());
         v.setIgnored(m.isIgnored());
         // 待办被用户删掉后这里会悬挂 —— 当作「没转过」，否则前端会显示一条不存在的待办
@@ -427,35 +447,5 @@ public class MailService {
         }
         String t = s.trim();
         return t.length() <= max ? t : t.substring(0, max);
-    }
-
-    /**
-     * 把 JavaMail 的英文异常翻成用户能照着修的话。
-     * 「A3 NO LOGIN failed」这种原文摆在界面上，等于什么都没说。
-     */
-    private static String friendly(Exception e) {
-        Throwable t = e;
-        while (t.getCause() != null && t.getCause() != t) {
-            t = t.getCause();
-        }
-        String msg = t.getMessage() == null ? t.getClass().getSimpleName() : t.getMessage();
-        String lower = msg.toLowerCase(Locale.ROOT);
-        if (t instanceof AuthenticationFailedException
-                || lower.contains("login failed") || lower.contains("authentication") || lower.contains("auth")) {
-            return "登录失败：QQ 邮箱要用 IMAP 授权码（不是登录密码），并确认已开启 IMAP 服务";
-        }
-        if (lower.contains("unknownhost") || lower.contains("nodename") || lower.contains("no such host")) {
-            return "找不到邮件服务器：检查 IMAP 地址（QQ 邮箱为 imap.qq.com）";
-        }
-        if (lower.contains("timed out") || lower.contains("timeout")) {
-            return "连接超时：网络不通或被防火墙拦了 993 端口";
-        }
-        if (lower.contains("connect")) {
-            return "连不上邮件服务器：检查网络后重试（QQ 邮箱为 imap.qq.com:993）";
-        }
-        if (lower.contains("folder") || lower.contains("not found")) {
-            return "找不到收件文件夹：" + msg;
-        }
-        return msg.length() > 200 ? msg.substring(0, 200) : msg;
     }
 }

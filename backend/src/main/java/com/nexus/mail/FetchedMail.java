@@ -3,6 +3,8 @@ package com.nexus.mail;
 import lombok.Data;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * 刚从 IMAP 抓下来、还没入库的一封邮件。
@@ -35,4 +37,21 @@ public class FetchedMail {
 
     /** 抓取时在邮箱里是否已读 */
     private boolean read;
+
+    /** 附件元信息（不含字节，下载时再回 IMAP 取） */
+    private List<AttachmentMeta> attachments = new ArrayList<>();
+
+    @Data
+    public static class AttachmentMeta {
+
+        /** MIME 树里第几个附件，从 0 开始。下载时按同一顺序取回 */
+        private int partIndex;
+
+        private String filename;
+
+        private String contentType;
+
+        /** 服务端不给大小时为 0 */
+        private long size;
+    }
 }

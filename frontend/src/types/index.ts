@@ -242,6 +242,8 @@ export interface NotifySettings {
   onPosting: boolean
   /** 邮箱收到重要邮件 */
   onMail: boolean
+  /** 每天早上的邮件摘要 */
+  onMailDigest: boolean
 }
 
 export interface Page {
@@ -307,6 +309,19 @@ export interface MailMessageView {
   todoExists: boolean
   todoContent: string | null
   todoDueDate: string | null
+  attachments: MailAttachmentView[]
+}
+
+export interface MailAttachmentView {
+  id: number
+  filename: string
+  contentType: string | null
+  /** 服务端没给大小时为 0 */
+  sizeBytes: number
+  /** 是否已存到本地（未下载时点下载会现取一次） */
+  downloaded: boolean
+  /** 图片/PDF 这类可直接在看板里预览 */
+  previewable: boolean
 }
 
 export interface MailSettings {
@@ -324,9 +339,51 @@ export interface MailSettings {
   ignoreSenders: string
   extraKeywords: string
   fetchLimit: number
+  /** 每天早上推送昨天的摘要 */
+  digestEnabled: boolean
   lastSyncAt: string
+  /** 上次推送摘要的日期，同一天不重复推 */
+  lastDigestDate: string
   configured: boolean
   lastError: string
+}
+
+/** 发件人规则 */
+export interface SenderRule {
+  id: number
+  pattern: string
+  /** important 一律重要 / watch 至少可关注 / ignore 不提醒 */
+  action: 'important' | 'watch' | 'ignore'
+  note: string | null
+  hitCount: number
+  lastHitAt: string | null
+  createdAt: string
+}
+
+export interface MailDigestItem {
+  id: number
+  subject: string
+  senderName: string
+  receivedAt: string
+  level: 'high' | 'medium' | 'low'
+  score: number
+  todoContent: string | null
+  hasAttachment: boolean
+  attachments: string[]
+}
+
+export interface MailDigest {
+  date: string
+  total: number
+  high: number
+  medium: number
+  low: number
+  todos: number
+  items: MailDigestItem[]
+  dueToday: string[]
+  topSenders: string[]
+  /** 纯文本版，推送用的就是这段 */
+  text: string
 }
 
 export interface MailStats {

@@ -81,6 +81,10 @@
             <input v-model="notifyForm.onMail" type="checkbox" />
             <span>重要邮件提醒（收到面试/笔试等判为重要的邮件时推送，只看重要不看广告）</span>
           </label>
+          <label class="setting-check">
+            <input v-model="notifyForm.onMailDigest" type="checkbox" />
+            <span>每日邮件摘要（每天 8:00 把昨天要紧的邮件汇总成一条，没有要紧邮件就不发）</span>
+          </label>
         </div>
         <p class="setting-hint">
           只做出站推送（群机器人 webhook），无需公网 IP。配好后先点「发送测试」确认能收到，再打开总开关。
@@ -129,7 +133,8 @@ const notifyForm = reactive({
   onInterview: true,
   onTodo: true,
   onPosting: true,
-  onMail: true
+  onMail: true,
+  onMailDigest: true
 })
 
 onMounted(async () => {

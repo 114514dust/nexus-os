@@ -3,6 +3,8 @@ package com.nexus.mail;
 import lombok.Data;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * 邮件列表/详情的前端视图。
@@ -40,6 +42,9 @@ public class MailView {
     private String verdictBy;
 
     private boolean hasAttachment;
+
+    /** 附件清单（只给名字/大小/是否已存本地，不给本地路径） */
+    private List<MailAttachmentView> attachments = new ArrayList<>();
 
     private boolean read;
 

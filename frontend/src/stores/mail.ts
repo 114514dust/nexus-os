@@ -9,15 +9,22 @@ import {
   mailToTodo,
   ignoreMail,
   deleteMail,
+  fetchMailDigest,
+  pushMailDigest,
+  fetchSenderRules,
+  createSenderRule,
+  deleteSenderRule,
   type MailQuery
 } from '@/api/mail'
-import type { MailMessageView, MailSettings, MailStats } from '@/types'
+import type { MailDigest, MailMessageView, MailSettings, MailStats, SenderRule } from '@/types'
 
 export const useMailStore = defineStore('mail', {
   state: () => ({
     items: [] as MailMessageView[],
     stats: null as MailStats | null,
     settings: null as MailSettings | null,
+    rules: [] as SenderRule[],
+    digest: null as MailDigest | null,
     loading: false,
     syncing: false
   }),
@@ -73,6 +80,32 @@ export const useMailStore = defineStore('mail', {
     async remove(id: number) {
       await deleteMail(id)
       this.items = this.items.filter((i) => i.id !== id)
+    },
+
+    async loadRules() {
+      this.rules = await fetchSenderRules()
+      return this.rules
+    },
+
+    /** 新增规则：同一 pattern 重复添加时后端会报 409，这里交给调用方提示 */
+    async addRule(pattern: string, action: SenderRule['action'], note = '') {
+      const rule = await createSenderRule({ pattern, action, note })
+      this.rules = [...this.rules, rule]
+      return rule
+    },
+
+    async removeRule(id: number) {
+      await deleteSenderRule(id)
+      this.rules = this.rules.filter((r) => r.id !== id)
+    },
+
+    async loadDigest(date?: string) {
+      this.digest = await fetchMailDigest(date)
+      return this.digest
+    },
+
+    async pushDigest(date?: string) {
+      return pushMailDigest(date)
     },
 
     replace(view: MailMessageView) {

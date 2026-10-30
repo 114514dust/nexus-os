@@ -1,5 +1,12 @@
 import { request } from './http'
-import type { MailMessageView, MailSettings, MailStats, MailSyncResult } from '@/types'
+import type {
+  MailDigest,
+  MailMessageView,
+  MailSettings,
+  MailStats,
+  MailSyncResult,
+  SenderRule
+} from '@/types'
 
 export interface MailQuery {
   /** important（默认，只看高/中置信度）/ all / todo（已转待办） */
@@ -53,4 +60,44 @@ export function ignoreMail(id: number) {
 
 export function deleteMail(id: number) {
   return request<void>({ method: 'DELETE', url: `/mail/messages/${id}` })
+}
+
+/** 附件的直链。首次点开时后端会回 IMAP 取一次并存到本地，之后直接读盘 */
+export function mailAttachmentUrl(id: number, inline = false) {
+  const base = import.meta.env.VITE_API_BASE_URL ?? '/api'
+  return `${base}/mail/attachments/${id}/download${inline ? '?inline=true' : ''}`
+}
+
+/** 某天的摘要（默认昨天），只读不推送 */
+export function fetchMailDigest(date?: string) {
+  return request<MailDigest>({ method: 'GET', url: '/mail/digest', params: date ? { date } : {} })
+}
+
+/** 立即推送一次摘要；没有要紧邮件时后端会返回 pushed=false */
+export function pushMailDigest(date?: string) {
+  return request<{ pushed: boolean; message: string }>({
+    method: 'POST',
+    url: '/mail/digest/push',
+    params: date ? { date } : {},
+    timeout: 30000
+  })
+}
+
+export function fetchSenderRules() {
+  return request<SenderRule[]>({ method: 'GET', url: '/mail/rules' })
+}
+
+export function createSenderRule(data: { pattern: string; action: string; note?: string }) {
+  return request<SenderRule>({ method: 'POST', url: '/mail/rules', data })
+}
+
+export function updateSenderRule(
+  id: number,
+  data: { pattern?: string; action?: string; note?: string }
+) {
+  return request<SenderRule>({ method: 'PUT', url: `/mail/rules/${id}`, data })
+}
+
+export function deleteSenderRule(id: number) {
+  return request<void>({ method: 'DELETE', url: `/mail/rules/${id}` })
 }

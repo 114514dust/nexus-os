@@ -533,6 +533,35 @@ class MailToTodoTool(Tool):
         return f"已把邮件「{view.get('subject', '')}」转成待办：{view.get('todoContent', '')}"
 
 
+class MailDigestTool(Tool):
+    name = "mail_digest"
+    description = "查看某一天的邮件摘要（默认昨天）：收到多少封、哪些要紧、转了几条待办、今天有什么到期"
+    params = '{"date": "2026-10-30"}'
+
+    def call(self, params, client):
+        kwargs = {}
+        day = str(params.get("date") or "").strip()
+        if day:
+            kwargs["date"] = day
+        try:
+            r = client.get("/api/mail/digest", **kwargs)
+        except Exception as e:  # noqa: BLE001
+            return f"读取邮件摘要失败：{e}"
+        if not r:
+            return "没有取到摘要（邮箱可能还没配置）"
+        if r.get("total", 0) == 0:
+            return f"{r.get('date', '')} 没有收到邮件"
+        # 后端已经排好版了（含日期、封数、要紧邮件清单），别在工具层再拼一遍标题 ——
+        # 重复一遍日期只会让 LLM 转述时更啰嗦
+        body = (r.get("text") or "").strip()
+        if body:
+            return body
+        return (
+            f"{r.get('date')} 共收到 {r.get('total')} 封："
+            f"重要 {r.get('high')} · 可关注 {r.get('medium')} · 已转待办 {r.get('todos')}"
+        )
+
+
 # ---- 订阅 ----
 class SubscriptionListTool(Tool):
     name = "subscription_list"
@@ -635,7 +664,7 @@ _TOOL_CLASSES: List[type] = [
     AlgorithmSearchTool,
     JobListTool, JobAddTool, JobUpdateStageTool, JobStatsTool,
     PostingListTool, PostingApplyTool, PostingRefreshTool,
-    MailListTool, MailSyncTool, MailToTodoTool,
+    MailListTool, MailSyncTool, MailToTodoTool, MailDigestTool,
     SubscriptionListTool,
     MessageListTool,
     SummaryGenerateTool,

@@ -16,6 +16,7 @@ import javax.mail.UIDFolder;
 import javax.mail.internet.InternetAddress;
 import javax.mail.internet.MimeUtility;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
@@ -95,9 +96,43 @@ public class MailFetcher {
         }
     }
 
-    /** 测试连接：能打开文件夹并读到总数就算通 */
-    public int probe(MailSettingsDto cfg) throws Exception {
+    /**
+     * 按 UID + 附件序号把附件字节写到调用方给的流里（用户点「下载」时才走这条路）。
+     *
+     * 为什么不做「收信时全存」：订阅一个真实邮箱，营销彩页、宣讲手册动辄几十兆，
+     * 而用户真正会打开的不到一成。按需取一次的代价只是一次 IMAP 往返。
+     */
+    public long fetchAttachment(MailSettingsDto cfg, long uid, int partIndex,
+                               OutputStream sink, long maxBytes) throws Exception {
         Store store = null;
+        Folder folder = null;
+        try {
+            store = connect(cfg);
+            folder = store.getFolder(cfg.getFolder());
+            folder.open(Folder.READ_ONLY);
+            if (!(folder instanceof UIDFolder)) {
+                throw new IllegalStateException("该邮箱不支持 IMAP UID，无法定位邮件");
+            }
+            Message message = ((UIDFolder) folder).getMessageByUID(uid);
+            if (message == null) {
+                throw new IllegalStateException("这封邮件在邮箱里已不存在（可能被移动或删除了）");
+            }
+            Body body = new Body();
+            body.sink = sink;
+            body.targetIndex = partIndex;
+            body.maxBytes = maxBytes;
+            walk(message, body);
+            if (!body.saved) {
+                throw new IllegalStateException("找不到这个附件（邮件可能已被修改）");
+            }
+            return body.savedBytes;
+        } finally {
+            closeQuietly(folder, store);
+        }
+    }
+
+    /** 测试连接：能打开文件夹并读到总数就算通 */
+    public int probe(MailSettingsDto cfg) throws Exception {        Store store = null;
         Folder folder = null;
         try {
             store = connect(cfg);
@@ -168,6 +203,7 @@ public class MailFetcher {
         mail.setBody(cut(text, MAX_BODY));
         mail.setSnippet(cut(text, MAX_SNIPPET));
         mail.setHasAttachment(body.attachment);
+        mail.setAttachments(body.attachments);
         // 没有发件人地址的邮件（极少见）也不能让入库失败，NOT NULL 列给个占位
         if (mail.getSenderAddr() == null || mail.getSenderAddr().isEmpty()) {
             mail.setSenderAddr("unknown");
@@ -196,6 +232,16 @@ public class MailFetcher {
         String plain;
         String html;
         boolean attachment;
+        /** 附件序号：遍历顺序固定，下载时按同样顺序就能取回同一个 */
+        int attIndex;
+        final List<FetchedMail.AttachmentMeta> attachments = new ArrayList<>();
+
+        // ---- 下载模式：非空表示这次遍历是为了取某个附件的字节 ----
+        OutputStream sink;
+        int targetIndex = -1;
+        long maxBytes = Long.MAX_VALUE;
+        boolean saved;
+        long savedBytes;
     }
 
     /**
@@ -226,8 +272,20 @@ public class MailFetcher {
             }
             return;
         }
-        if (Part.ATTACHMENT.equalsIgnoreCase(part.getDisposition()) || part.getFileName() != null) {
+        if (isAttachment(part)) {
+            // 序号必须在「判定为附件」的同一处递增，否则收信与下载两边对不上
+            int index = out.attIndex++;
             out.attachment = true;
+            if (out.sink != null) {
+                if (index == out.targetIndex) {
+                    out.savedBytes = copyToSink(part, out.sink, out.maxBytes);
+                    out.saved = true;
+                    return;
+                }
+                // 下载模式下不关心正文，跳过其它附件
+                return;
+            }
+            out.attachments.add(meta(part, index));
             // 附件正文不参与重要性判定，但如果它是纯文本附件也不该当作邮件正文
             if (!part.isMimeType("text/plain")) {
                 return;
@@ -238,6 +296,58 @@ public class MailFetcher {
         } else if (part.isMimeType("text/html") && out.html == null) {
             out.html = asText(part);
         }
+    }
+
+    /**
+     * 判断是不是「用户意义上的附件」。
+     *
+     * 一个容易踩的坑：邮件模板里的签名 logo、横幅图都是
+     * {@code Content-Disposition: inline; filename="image001.png"}，
+     * 按「有文件名就是附件」判定，会让每封营销邮件都挂上 📎，
+     * 附件功能立刻失去意义。所以 inline 的图片一律不算。
+     */
+    private static boolean isAttachment(Part part) throws Exception {
+        String disposition = part.getDisposition();
+        if (Part.ATTACHMENT.equalsIgnoreCase(disposition)) {
+            return true;
+        }
+        if (part.getFileName() == null) {
+            return false;
+        }
+        return !(Part.INLINE.equalsIgnoreCase(disposition) && part.isMimeType("image/*"));
+    }
+
+    private static FetchedMail.AttachmentMeta meta(Part part, int index) throws Exception {
+        FetchedMail.AttachmentMeta m = new FetchedMail.AttachmentMeta();
+        m.setPartIndex(index);
+        String name = decode(part.getFileName());
+        if (name == null || name.trim().isEmpty()) {
+            // 没文件名的附件（内嵌资源居多）给个能点开的名字，总比空字符串好
+            name = "附件" + (index + 1);
+        }
+        m.setFilename(cut(name, 250));
+        m.setContentType(cut(part.getContentType(), 128));
+        int size = part.getSize();
+        m.setSize(size > 0 ? size : 0);
+        return m;
+    }
+
+    /** 把附件字节写进调用方给的流，超过上限直接中断（不写半截文件由调用方负责清理） */
+    private static long copyToSink(Part part, OutputStream sink, long maxBytes) throws Exception {
+        long total = 0;
+        try (InputStream in = part.getInputStream()) {
+            byte[] buf = new byte[8192];
+            int n;
+            while ((n = in.read(buf)) > 0) {
+                total += n;
+                if (total > maxBytes) {
+                    throw new IllegalStateException("附件超过大小上限（" + (maxBytes / 1024 / 1024) + " MB）");
+                }
+                sink.write(buf, 0, n);
+            }
+        }
+        sink.flush();
+        return total;
     }
 
     private static String asText(Part part) throws Exception {

@@ -19,7 +19,7 @@
         <a class="mail-help" href="https://mail.qq.com/" target="_blank" rel="noopener noreferrer">
           打开 QQ 邮箱 ↗
         </a>
-        <button class="btn mail-setup-btn" @click="settingsOpen = true">填写配置</button>
+        <button class="btn mail-setup-btn" @click="togglePanel('settings')">填写配置</button>
       </div>
     </div>
 
@@ -51,7 +51,30 @@
         <option value="todo">已转待办</option>
         <option value="all">全部</option>
       </select>
-      <button class="mail-chip" :class="{ on: settingsOpen }" title="邮箱配置" @click="toggleSettings">
+      <button
+        v-if="configured"
+        class="mail-chip"
+        :class="{ on: panel === 'rules' }"
+        title="发件人规则"
+        @click="togglePanel('rules')"
+      >
+        🎯
+      </button>
+      <button
+        v-if="configured"
+        class="mail-chip"
+        :class="{ on: panel === 'digest' }"
+        title="每日摘要"
+        @click="togglePanel('digest')"
+      >
+        📮
+      </button>
+      <button
+        class="mail-chip"
+        :class="{ on: panel === 'settings' }"
+        title="邮箱配置"
+        @click="togglePanel('settings')"
+      >
         ⚙
       </button>
       <button
@@ -60,12 +83,12 @@
         :title="configured ? '立即收取一次' : '先完成配置'"
         @click="sync"
       >
-        {{ store.syncing ? '收取中…' : '⟳' }}
+        {{ store.syncing ? '…' : '⟳' }}
       </button>
     </div>
 
     <!-- 配置面板 -->
-    <div v-if="settingsOpen" class="mail-settings">
+    <div v-if="panel === 'settings'" class="mail-panel mail-settings">
       <div class="mail-field">
         <label>邮箱地址</label>
         <input v-model="form.address" class="mail-search" placeholder="例如 123456789@qq.com" />
@@ -96,6 +119,12 @@
         <label class="mail-check">
           <input v-model="form.llmJudge" type="checkbox" />
           <span>用 AI 精判模糊邮件（需配置 API Key）</span>
+        </label>
+      </div>
+      <div class="mail-field">
+        <label class="mail-check">
+          <input v-model="form.digestEnabled" type="checkbox" />
+          <span>每天 8:00 推送昨日摘要</span>
         </label>
       </div>
 
@@ -136,10 +165,68 @@
         <button class="btn primary" :disabled="saving" @click="save">
           {{ saving ? '保存中…' : '保存' }}
         </button>
-        <button class="btn" @click="settingsOpen = false">取消</button>
+        <button class="btn" @click="panel = 'none'">取消</button>
       </div>
 
       <div v-if="settings?.lastError" class="mail-error">上次失败：{{ settings.lastError }}</div>
+    </div>
+
+    <!-- 发件人规则 -->
+    <div v-if="panel === 'rules'" class="mail-panel">
+      <div class="mail-panel-head">
+        <b>发件人规则</b>
+        <span class="muted">谁的信值得打断你，你说了算</span>
+      </div>
+      <div class="mail-rule-add">
+        <input
+          v-model="ruleDraft.pattern"
+          class="mail-search"
+          placeholder="地址片段 / 域名 / 发件人名，如 edu.cn"
+          @keyup.enter="addRule"
+        />
+        <select v-model="ruleDraft.action" class="mail-select">
+          <option value="important">一律重要</option>
+          <option value="watch">至少可关注</option>
+          <option value="ignore">不提醒</option>
+        </select>
+        <button class="btn" :disabled="!ruleDraft.pattern.trim() || ruleAdding" @click="addRule">
+          {{ ruleAdding ? '…' : '添加' }}
+        </button>
+      </div>
+
+      <ul v-if="store.rules.length" class="mail-rule-list">
+        <li v-for="r in store.rules" :key="r.id" class="mail-rule">
+          <span class="mail-rule-act" :class="r.action">{{ ruleActionLabel(r.action) }}</span>
+          <span class="mail-rule-pattern" :title="r.pattern">{{ r.pattern }}</span>
+          <span class="mail-rule-hit muted">{{ r.hitCount ? '命中 ' + r.hitCount : '未命中' }}</span>
+          <button class="mail-act ghost" title="删除规则" @click="removeRule(r.id)">×</button>
+        </li>
+      </ul>
+      <p v-else class="muted mail-rule-empty">
+        还没有规则。加一条「edu.cn → 一律重要」，学校就业中心的通知就不会被当成普通邮件；
+        多个规则同时命中时，写得越具体的那条优先。
+      </p>
+    </div>
+
+    <!-- 每日摘要 -->
+    <div v-if="panel === 'digest'" class="mail-panel">
+      <div class="mail-panel-head">
+        <b>每日摘要</b>
+        <span class="muted">每天 8:00 推一封昨天的要紧邮件</span>
+      </div>
+      <div class="mail-digest-bar">
+        <select v-model="digestDay" class="mail-select" @change="loadDigest">
+          <option value="yesterday">昨天</option>
+          <option value="today">今天</option>
+        </select>
+        <button class="btn" :disabled="digestPushing" @click="pushDigest">
+          {{ digestPushing ? '推送中…' : '立即推送一次' }}
+        </button>
+      </div>
+      <pre class="mail-digest-text">{{ digestText }}</pre>
+      <p class="muted mail-digest-hint">
+        没有要紧邮件的那天不会推送 —— 不发消息，本身就是「今天不用管邮箱」的答案。
+      </p>
     </div>
 
     <!-- 列表 -->
@@ -162,7 +249,9 @@
         <div v-if="m.snippet" class="mail-snippet">{{ m.snippet }}</div>
 
         <div class="mail-row-2">
-          <span v-if="m.hasAttachment" class="mail-flag" title="含附件">📎</span>
+          <span v-if="m.hasAttachment" class="mail-flag" title="含附件">
+            📎{{ m.attachments?.length || '' }}
+          </span>
           <span v-if="m.verdictBy === 'llm'" class="mail-flag ai" title="AI 参与判定">AI</span>
           <span class="mail-score" :title="m.scoreReason || ''">{{ m.importantScore }} 分</span>
           <span v-if="m.todoExists" class="mail-todo-tag" :title="m.todoContent || ''">
@@ -192,11 +281,11 @@
     </footer>
 
     <!-- 详情 -->
-    <div v-if="detail" class="mail-detail-mask" @click.self="detail = null">
+    <div v-if="detail" class="mail-detail-mask" @click.self="closeDetail">
       <div class="mail-detail">
         <header class="mail-detail-head">
           <div class="mail-detail-subject">{{ detail.subject }}</div>
-          <button class="mail-detail-close" @click="detail = null">×</button>
+          <button class="mail-detail-close" @click="closeDetail">×</button>
         </header>
         <div class="mail-detail-meta">
           <span>{{ detail.senderName }} &lt;{{ detail.senderAddr }}&gt;</span>
@@ -206,10 +295,63 @@
           </span>
         </div>
         <div v-if="detail.scoreReason" class="mail-detail-reason">判定依据：{{ detail.scoreReason }}</div>
+
+        <!-- 附件 -->
+        <div v-if="detail.attachments?.length" class="mail-atts">
+          <div class="mail-atts-head">
+            <span>附件 {{ detail.attachments.length }}</span>
+            <button
+              v-if="detail.attachments.length > 1"
+              class="mail-act"
+              title="依次下载全部附件"
+              @click="downloadAll(detail)"
+            >
+              全部下载
+            </button>
+          </div>
+          <div v-for="att in detail.attachments" :key="att.id" class="mail-att">
+            <span class="mail-att-icon">{{ attIcon(att) }}</span>
+            <span class="mail-att-name" :title="att.filename">{{ att.filename }}</span>
+            <span class="mail-att-size muted">{{ fmtSize(att.sizeBytes) }}</span>
+            <span v-if="att.downloaded" class="mail-att-saved">已存本地</span>
+            <a
+              class="mail-act"
+              :href="attUrl(att.id)"
+              title="保存到本机（首次会回邮箱取一次）"
+              @click="afterDownload"
+            >下载</a>
+            <a
+              v-if="att.previewable"
+              class="mail-act"
+              :href="attUrl(att.id, true)"
+              target="_blank"
+              rel="noopener"
+              title="在新标签页打开"
+            >预览</a>
+          </div>
+        </div>
+
         <pre class="mail-detail-body">{{ detail.body || detail.snippet || '（无正文）' }}</pre>
+
+        <div v-if="detailRuleOpen" class="mail-rule-inline">
+          <span class="muted">此后来自该发件人的邮件</span>
+          <input v-model="detailRule.pattern" class="mail-search" title="可改成整个域名，如 @edu.cn" />
+          <select v-model="detailRule.action" class="mail-select">
+            <option value="important">一律重要</option>
+            <option value="watch">至少可关注</option>
+            <option value="ignore">不提醒</option>
+          </select>
+          <button class="btn primary" :disabled="detailRuleSaving" @click="saveDetailRule">
+            {{ detailRuleSaving ? '…' : '保存' }}
+          </button>
+        </div>
+
         <footer class="mail-detail-foot">
           <span v-if="detail.todoExists" class="mail-todo-tag">✓ 已转待办：{{ detail.todoContent }}</span>
           <button v-else class="btn primary" @click="toTodo(detail)">＋ 加入待办</button>
+          <button class="btn" :class="{ primary: detailRuleOpen }" @click="openDetailRule(detail)">
+            🎯 发件人规则
+          </button>
           <span class="mail-spacer"></span>
           <button class="btn" @click="remove(detail)">删除记录</button>
         </footer>
@@ -221,22 +363,44 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useMailStore } from '@/stores/mail'
-import { fetchMailDetail } from '@/api/mail'
+import { fetchMailDetail, mailAttachmentUrl } from '@/api/mail'
 import { useLiveReload } from '@/composables/useLiveReload'
-import { friendlyError, toastError, toastSuccess } from '@/utils/toast'
-import type { MailMessageView, MailSettings } from '@/types'
+import { friendlyError, toastError, toastInfo, toastSuccess } from '@/utils/toast'
+import type { MailMessageView, MailSettings, SenderRule } from '@/types'
 
 const store = useMailStore()
 
 const keyword = ref('')
 const scope = ref<'important' | 'all' | 'todo'>('important')
-const settingsOpen = ref(false)
+/** 四个面板互斥，同时展开会把列表挤没 */
+const panel = ref<'none' | 'settings' | 'rules' | 'digest'>('none')
 const detail = ref<MailMessageView | null>(null)
 const probing = ref(false)
 const saving = ref(false)
 
+const ruleDraft = reactive<{ pattern: string; action: SenderRule['action'] }>({
+  pattern: '',
+  action: 'important'
+})
+const ruleAdding = ref(false)
+
+const detailRuleOpen = ref(false)
+const detailRuleSaving = ref(false)
+const detailRule = reactive<{ pattern: string; action: SenderRule['action'] }>({
+  pattern: '',
+  action: 'important'
+})
+
+const digestDay = ref<'today' | 'yesterday'>('yesterday')
+const digestPushing = ref(false)
+
 const settings = computed(() => store.settings)
 const configured = computed(() => !!store.settings?.configured)
+const digestText = computed(() => {
+  if (!store.digest) return '加载中…'
+  if (store.digest.total === 0) return '这一天没有收到邮件。'
+  return store.digest.text
+})
 
 /** 配置表单：用本地副本编辑，保存成功后才回写 store，避免边输边污染状态 */
 const form = reactive<MailSettings>({
@@ -252,7 +416,9 @@ const form = reactive<MailSettings>({
   ignoreSenders: '',
   extraKeywords: '',
   fetchLimit: 30,
+  digestEnabled: true,
   lastSyncAt: '',
+  lastDigestDate: '',
   configured: false,
   lastError: ''
 })
@@ -271,6 +437,7 @@ onMounted(async () => {
   } catch (e) {
     console.warn('[mail] 配置加载失败', e)
   }
+  store.loadRules().catch(() => {})
   reload()
 })
 
@@ -301,12 +468,19 @@ function fillForm(s: MailSettings) {
   form.ignoreSenders = s.ignoreSenders
   form.extraKeywords = s.extraKeywords
   form.fetchLimit = s.fetchLimit
+  form.digestEnabled = s.digestEnabled
 }
 
-function toggleSettings() {
-  settingsOpen.value = !settingsOpen.value
-  if (settingsOpen.value && store.settings) {
+function togglePanel(next: 'settings' | 'rules' | 'digest') {
+  panel.value = panel.value === next ? 'none' : next
+  if (panel.value === 'settings' && store.settings) {
     fillForm(store.settings)
+  }
+  if (panel.value === 'rules') {
+    store.loadRules().catch(() => toastError('规则加载失败'))
+  }
+  if (panel.value === 'digest') {
+    loadDigest()
   }
 }
 
@@ -321,7 +495,7 @@ async function save() {
     fillForm(saved)
     toastSuccess(saved.configured ? '配置已保存，点 ⟳ 可以开始收信' : '已保存，还需要填写授权码')
     if (saved.configured) {
-      settingsOpen.value = false
+      panel.value = 'none'
       reload()
     }
   } catch (e) {
@@ -364,9 +538,169 @@ async function sync() {
   }
 }
 
+// ---- 发件人规则 ----
+
+async function addRule() {
+  const pattern = ruleDraft.pattern.trim()
+  if (!pattern) return
+  ruleAdding.value = true
+  try {
+    const rule = await store.addRule(pattern, ruleDraft.action)
+    toastSuccess(`已添加规则：${rule.pattern} → ${ruleActionLabel(rule.action)}`)
+    ruleDraft.pattern = ''
+  } catch (e) {
+    toastError('添加失败：' + friendlyError(e))
+  } finally {
+    ruleAdding.value = false
+  }
+}
+
+async function removeRule(id: number) {
+  try {
+    await store.removeRule(id)
+    toastSuccess('规则已删除')
+  } catch (e) {
+    toastError('删除失败：' + friendlyError(e))
+  }
+}
+
+function ruleActionLabel(action: string) {
+  if (action === 'important') return '一律重要'
+  if (action === 'watch') return '可关注'
+  return '不提醒'
+}
+
+function openDetailRule(m: MailMessageView) {
+  detailRuleOpen.value = !detailRuleOpen.value
+  if (!detailRuleOpen.value) return
+  const addr = m.senderAddr || ''
+  const at = addr.indexOf('@')
+  // 默认按域名：机构换一个发件人是常事，只匹配完整地址会漏
+  detailRule.pattern = at > 0 ? addr.slice(at) : addr
+  // 已经判成普通邮件的，默认意图多半是「别再提醒我」
+  detailRule.action = m.importantLevel === 'low' ? 'ignore' : 'important'
+}
+
+async function saveDetailRule() {
+  const pattern = detailRule.pattern.trim()
+  if (!pattern) {
+    toastError('规则内容不能为空')
+    return
+  }
+  detailRuleSaving.value = true
+  try {
+    const rule = await store.addRule(pattern, detailRule.action)
+    toastSuccess(`已添加：${rule.pattern} → ${ruleActionLabel(rule.action)}，下一封起生效`)
+    detailRuleOpen.value = false
+  } catch (e) {
+    toastError('保存失败：' + friendlyError(e))
+  } finally {
+    detailRuleSaving.value = false
+  }
+}
+
+// ---- 摘要 ----
+
+function localDate(d: Date) {
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+}
+
+function digestDateParam() {
+  const d = new Date()
+  if (digestDay.value === 'yesterday') d.setDate(d.getDate() - 1)
+  return localDate(d)
+}
+
+async function loadDigest() {
+  try {
+    await store.loadDigest(digestDateParam())
+  } catch (e) {
+    toastError('读取摘要失败：' + friendlyError(e))
+  }
+}
+
+async function pushDigest() {
+  digestPushing.value = true
+  try {
+    const r = await store.pushDigest(digestDateParam())
+    if (r.pushed) {
+      toastSuccess(r.message || '摘要已推送')
+    } else {
+      toastInfo(r.message || '这一天没有要紧邮件')
+    }
+  } catch (e) {
+    toastError('推送失败：' + friendlyError(e))
+  } finally {
+    digestPushing.value = false
+  }
+}
+
+// ---- 附件 ----
+
+function attUrl(id: number, inline = false) {
+  return mailAttachmentUrl(id, inline)
+}
+
+function attIcon(att: { contentType: string | null; filename: string }) {
+  const name = (att.filename || '').toLowerCase()
+  const ct = (att.contentType || '').toLowerCase()
+  if (ct.startsWith('image/') || /\.(png|jpe?g|gif|webp)$/.test(name)) return '🖼'
+  if (ct.includes('pdf') || name.endsWith('.pdf')) return '📄'
+  if (/\.(docx?|xlsx?|pptx?)$/.test(name)) return '📝'
+  if (/\.(zip|rar|7z|gz)$/.test(name)) return '🗜'
+  return '📎'
+}
+
+function fmtSize(bytes: number) {
+  if (!bytes) return '大小未知'
+  const kb = bytes / 1024
+  if (kb < 1) return `${bytes} B`
+  if (kb < 1024) return `${Math.round(kb)} KB`
+  return `${(kb / 1024).toFixed(1)} MB`
+}
+
+/** 下载是浏览器接管的行为，拿不到完成事件，只能稍后回查一次「是否已存本地」 */
+function afterDownload() {
+  toastInfo('已开始下载，大附件需要几秒')
+  const mailId = detail.value?.id
+  if (!mailId) return
+  window.setTimeout(() => refreshDetail(mailId), 2600)
+}
+
+function downloadAll(m: MailMessageView) {
+  const list = m.attachments || []
+  if (!list.length) return
+  toastInfo(`开始下载 ${list.length} 个附件`)
+  list.forEach((att, i) => {
+    // 一次触发多个下载会被浏览器拦掉大半，间隔开更稳
+    window.setTimeout(() => {
+      const a = document.createElement('a')
+      a.href = mailAttachmentUrl(att.id)
+      a.rel = 'noopener'
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+    }, i * 700)
+  })
+  window.setTimeout(() => refreshDetail(m.id), list.length * 700 + 2600)
+}
+
+async function refreshDetail(mailId: number) {
+  try {
+    const full = await fetchMailDetail(mailId)
+    if (detail.value?.id === mailId) detail.value = full
+  } catch {
+    // 回查失败不影响已经发起的下载
+  }
+}
+
+// ---- 详情 ----
+
 async function openDetail(m: MailMessageView) {
   // 列表接口不带正文，先用手上的摘要占位，再异步补全，点开就有反馈
   detail.value = m
+  detailRuleOpen.value = false
   try {
     const full = await fetchMailDetail(m.id)
     // 用户可能在请求期间关掉了弹层或翻到了另一封
@@ -374,6 +708,11 @@ async function openDetail(m: MailMessageView) {
   } catch (e) {
     toastError('打开邮件失败：' + friendlyError(e))
   }
+}
+
+function closeDetail() {
+  detail.value = null
+  detailRuleOpen.value = false
 }
 
 async function toTodo(m: MailMessageView) {
@@ -391,7 +730,7 @@ async function toTodo(m: MailMessageView) {
 async function ignore(m: MailMessageView) {
   try {
     await store.ignore(m.id)
-    if (detail.value?.id === m.id) detail.value = null
+    if (detail.value?.id === m.id) closeDetail()
   } catch (e) {
     toastError('操作失败：' + friendlyError(e))
   }
@@ -400,7 +739,7 @@ async function ignore(m: MailMessageView) {
 async function remove(m: MailMessageView) {
   try {
     await store.remove(m.id)
-    if (detail.value?.id === m.id) detail.value = null
+    if (detail.value?.id === m.id) closeDetail()
     toastSuccess('已删除这条邮件记录')
   } catch (e) {
     toastError('删除失败：' + friendlyError(e))

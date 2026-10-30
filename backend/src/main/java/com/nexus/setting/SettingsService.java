@@ -28,6 +28,7 @@ public class SettingsService {
     private static final String KEY_NOTIFY_ON_TODO = "notify.onTodo";
     private static final String KEY_NOTIFY_ON_POSTING = "notify.onPosting";
     private static final String KEY_NOTIFY_ON_MAIL = "notify.onMail";
+    private static final String KEY_NOTIFY_ON_MAIL_DIGEST = "notify.onMailDigest";
 
     private final SettingRepository settingRepository;
 
@@ -71,6 +72,7 @@ public class SettingsService {
         dto.setOnTodo(Boolean.parseBoolean(getValue(KEY_NOTIFY_ON_TODO)));
         dto.setOnPosting(Boolean.parseBoolean(getValue(KEY_NOTIFY_ON_POSTING)));
         dto.setOnMail(Boolean.parseBoolean(getValue(KEY_NOTIFY_ON_MAIL)));
+        dto.setOnMailDigest(Boolean.parseBoolean(getValue(KEY_NOTIFY_ON_MAIL_DIGEST)));
         return dto;
     }
 
@@ -93,6 +95,7 @@ public class SettingsService {
         setValue(KEY_NOTIFY_ON_TODO, String.valueOf(dto.isOnTodo()));
         setValue(KEY_NOTIFY_ON_POSTING, String.valueOf(dto.isOnPosting()));
         setValue(KEY_NOTIFY_ON_MAIL, String.valueOf(dto.isOnMail()));
+        setValue(KEY_NOTIFY_ON_MAIL_DIGEST, String.valueOf(dto.isOnMailDigest()));
         return getNotify();
     }
 

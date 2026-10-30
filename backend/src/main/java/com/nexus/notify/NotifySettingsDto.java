@@ -39,4 +39,7 @@ public class NotifySettingsDto {
 
     /** 邮箱收件时推送本次判为重要的邮件 */
     private boolean onMail;
+
+    /** 每天早上推送一封「昨天的要紧邮件」摘要 */
+    private boolean onMailDigest;
 }
